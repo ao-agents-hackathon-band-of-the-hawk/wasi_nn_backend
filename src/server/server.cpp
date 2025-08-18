@@ -2131,6 +2131,7 @@ struct server_context
     bool add_bos_token = true;
 
     int32_t n_ctx; // total context for all clients / slots
+    std::unordered_map<std::string, llama_adapter_lora *> lora_cache;
 
     // slots / clients
     std::vector<server_slot> slots;
@@ -2163,6 +2164,13 @@ struct server_context
 
             llama_batch_free(slot.batch_spec);
         }
+
+        for (auto & pair : lora_cache)
+        {
+            llama_adapter_lora_free(pair.second);
+        }
+        lora_cache.clear();
+        
 
         llama_batch_free(batch);
     }
@@ -2259,6 +2267,28 @@ struct server_context
 
         return true;
     }
+    // Helper function to check if two LoRA vectors are equal
+// Compares paths and scales in order (assumes order matters; if not, sort first)
+// Place this in server.cpp, e.g., as a free function or in server_context
+
+    bool are_lora_equal(
+        const std::vector<common_adapter_lora_info>& lora1,
+        const std::vector<common_adapter_lora_info>& lora2) {
+        
+        if (lora1.size() != lora2.size()) {
+            return false;
+        }
+        
+        for (size_t i = 0; i < lora1.size(); ++i) {
+            if (lora1[i].path != lora2[i].path || 
+                std::abs(lora1[i].scale - lora2[i].scale) > 1e-6f) {  // Float comparison with epsilon
+                return false;
+            }
+        }
+        
+        return true;
+    }
+        
 
     void init()
     {
@@ -2331,6 +2361,28 @@ struct server_context
             /* enable_thinking       */ params_base.reasoning_budget != 0,
         };
     }
+
+    llama_adapter_lora * lora_adapter_load(const std::string & path) {
+    auto it = lora_cache.find(path);
+    if (it != lora_cache.end()) {
+        
+        return it->second;
+    }
+
+    ("%s: loading LoRA adapter '%s'\n", __func__, path.c_str());
+
+    llama_adapter_lora * adapter = llama_adapter_lora_init(model, path.c_str());
+
+    if (adapter == nullptr) {
+        LOG_ERR("%s: failed to load LoRA adapter '%s'\n", __func__, path.c_str());
+        return nullptr;
+    }
+
+    lora_cache[path] = adapter;
+    LOG_INF("%s: using cached LoRA adapter '%s'\n", __func__, path.c_str());
+    return adapter;
+    }
+
 
     server_slot *get_slot_by_id(int id)
     {
@@ -3268,7 +3320,13 @@ struct server_context
         break;
         case SERVER_TASK_TYPE_SET_LORA:
         {
+            // Set global/base LoRA adapters
             params_base.lora_adapters = std::move(task.set_lora);
+        
+            // Optional: Log or validate
+            LOG_INF("Global LoRA adapters updated. New count: %zu", params_base.lora_adapters.size());
+                
+            // Send success response (as per earlier plan)
             auto res = std::make_unique<server_task_result_apply_lora>();
             res->id = task.id;
             queue_results.send(std::move(res));

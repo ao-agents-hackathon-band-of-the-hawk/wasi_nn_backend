@@ -28,7 +28,7 @@ set(LLAMA_BUILD_SERVER OFF)
 set(LLAMA_BUILD_COMMON ON)
 set(LLAMA_CURL OFF)
 set(GGML_CUDA ON)
-set(CMAKE_CUDA_ARCHITECTURES "86")
+set(CMAKE_CUDA_ARCHITECTURES "61")
 
 set(CMAKE_JOB_POOLS compile_job_pool=4 )
 FetchContent_MakeAvailable(llamacpp)

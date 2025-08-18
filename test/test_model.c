@@ -26,8 +26,8 @@ int test_safe_model_switch() {
         "}";
     
     // Define model paths
-    const char *first_model = "./test/qwen2.5-14b-instruct-q2_k.gguf";
-    const char *second_model = "./test/ISrbGzQot05rs_HKC08O_SmkipYQnqgB1yC3mjZZeEo.gguf";
+    const char *first_model = "./test/stories15M_MOE-Q8_0.gguf";
+    const char *second_model = "./test/Model2.gguf";
     
     // Initialize backend with enhanced config
     int result = wasi_init_backend_with_config(&backend_ctx, enhanced_config, strlen(enhanced_config));

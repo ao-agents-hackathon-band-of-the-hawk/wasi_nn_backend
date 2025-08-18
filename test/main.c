@@ -139,7 +139,7 @@ int main() {
     // Cleanup with safety checks
     if (handle) {
         // Give some time for any background GPU operations to complete
-        usleep(100000);  // 100ms delay
+        sleep(100000);  // 100ms delay
         
         // Safely close the dynamic library
         int dlclose_result = dlclose(handle);
@@ -150,7 +150,7 @@ int main() {
     }
 
     // Force a small delay before program exit to allow GPU cleanup
-    usleep(50000);  // 50ms delay
+    sleep(50000);  // 50ms delay
 
     return (test_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

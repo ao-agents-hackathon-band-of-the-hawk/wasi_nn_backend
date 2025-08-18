@@ -7,7 +7,7 @@ LDFLAGS = -ldl -lpthread
 
 # Modular source files
 COMMON_SOURCES = test_common.c
-TEST_SOURCES = test_basic.c test_inference.c test_session.c test_logging.c test_model.c test_stopping.c test_error.c
+TEST_SOURCES = test_basic.c test_inference.c test_session.c test_logging.c test_model.c test_stopping.c test_error.c test_lora.c
 MAIN_SOURCE = main.c
 ALL_SOURCES = $(COMMON_SOURCES) $(TEST_SOURCES) $(MAIN_SOURCE)
 

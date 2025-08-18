@@ -156,6 +156,12 @@ struct SessionInfo
   std::chrono::steady_clock::time_point last_activity;
 };
 
+struct LoraAdapterInfo
+{
+  std::string path;
+  float scale;
+};
+
 struct LlamaChatContext
 {
   // Server context (from server.cpp)
@@ -234,6 +240,10 @@ struct LlamaChatContext
   // Performance settings
   bool batch_processing_enabled;
   uint32_t batch_size;
+
+
+  // LoRA
+  std::vector<LoraAdapterInfo> lora_adapters;
 
   LlamaChatContext()
       : next_exec_ctx_id(1),
@@ -1474,6 +1484,7 @@ static void parse_config_to_params(const char *config_json,
     uint32_t threads = cjson_get_value(config_obj, "threads", params.cpuparams.n_threads);
     params.cpuparams.n_threads = threads;
     params.cpuparams_batch.n_threads = threads;
+    
   };
 
   // Parse nested model configuration or legacy flat structure
@@ -1538,6 +1549,28 @@ static void parse_config_to_params(const char *config_json,
     // Grammar parameters
     params.sampling.grammar = cjson_get_value(sampling, "grammar", params.sampling.grammar);
     params.sampling.grammar_lazy = cjson_get_value(sampling, "grammar_lazy", params.sampling.grammar_lazy);
+
+    // Assuming cJSON parsing; adjust if using different JSON lib  
+    cJSON *lora_array = cJSON_GetObjectItemCaseSensitive(root, "lora");  
+    if (lora_array && cJSON_IsArray(lora_array)) {  
+        cJSON *item = NULL;  
+        cJSON_ArrayForEach(item, lora_array) {  
+            if (cJSON_IsObject(item)) {  
+                LoraAdapterInfo info;  
+                cJSON *path_item = cJSON_GetObjectItemCaseSensitive(item, "path");  
+                if (path_item && cJSON_IsString(path_item)) {  
+                    info.path = path_item->valuestring;  
+                } else {  
+                    WASI_NN_LOG_ERROR(chat_ctx,"Error: Unable to load adpters");
+                    continue;  
+                }  
+                
+                cJSON *scale_item = cJSON_GetObjectItemCaseSensitive(item, "scale");  
+                info.scale = (scale_item && cJSON_IsNumber(scale_item)) ? (float)scale_item->valuedouble : 1.0f;  
+                params.lora_adapters.push_back({info.path, info.scale, NULL});  
+            }  
+        }  
+    }  
 
     // DRY sequence breakers (server.cpp style)
     cJSON *dry_sequence_breakers = cJSON_GetObjectItem(sampling, "dry_sequence_breakers");
@@ -2252,17 +2285,23 @@ load_by_name_with_config(void *ctx, const char *filename, uint32_t filename_len,
   parse_config_to_params(config, chat_ctx->server_ctx.params_base, chat_ctx);
   chat_ctx->server_ctx.params_base.model.path = filename;
 
+
   NN_INFO_PRINTF("Model config: n_gpu_layers=%d, ctx_size=%d, batch_size=%d, threads=%d",
                  chat_ctx->server_ctx.params_base.n_gpu_layers,
                  chat_ctx->server_ctx.params_base.n_ctx,
                  chat_ctx->server_ctx.params_base.n_batch,
                  chat_ctx->server_ctx.params_base.cpuparams.n_threads);
 
+
   // Load model using server_context's approach
   if (!chat_ctx->server_ctx.load_model(chat_ctx->server_ctx.params_base)) {
       NN_ERR_PRINTF("Failed to load model from file %s", filename);
       return runtime_error;
   }
+
+  
+
+
 
   // Initialize server context
   chat_ctx->server_ctx.init();
@@ -2308,7 +2347,45 @@ load_by_name_with_config(void *ctx, const char *filename, uint32_t filename_len,
                  chat_ctx->model_name.c_str(), chat_ctx->model_architecture.c_str(),
                  chat_ctx->model_vocab_size, chat_ctx->model_context_length);
 
+
+
+
+  // Load and prepare adapters (if not already done)
+  std::vector<common_adapter_lora_info> adapters;
+
+  bool all_loras_loaded = true;  // Flag to track if all adapters loaded successfully
+
+  for (const auto& adapter_info : chat_ctx->lora_adapters) {
+      // Attempt to load the adapter
+      llama_adapter_lora * adapter = llama_adapter_lora_init(chat_ctx->server_ctx.model, adapter_info.path.c_str());
+      
+      if (adapter == nullptr) {
+          WASI_NN_LOG_ERROR(chat_ctx, "Failed to load LoRA adapter '%s'", adapter_info.path.c_str());
+          all_loras_loaded = false;
+          continue;  // Skip this adapter and proceed, or break/return error based on policy
+      }
+      
+      // If loaded successfully, prepare info
+      common_adapter_lora_info info;
+      info.path = adapter_info.path;  // Or use loaded adapter details if needed
+      info.scale = adapter_info.scale;
+      adapters.push_back(info);
+      
+      WASI_NN_LOG_INFO(chat_ctx, "Successfully loaded LoRA adapter '%s' with scale %f", adapter_info.path.c_str(), adapter_info.scale);
+  }
+ 
+  // Apply the LoRA adapters only if all loaded successfully (or based on policy)
+  if (all_loras_loaded && !adapters.empty()) {
+      common_set_adapter_lora(chat_ctx->server_ctx.ctx, adapters);
+      WASI_NN_LOG_INFO(chat_ctx, "LoRA adapters applied successfully");
+  } else if (!all_loras_loaded) {
+      WASI_NN_LOG_WARN(chat_ctx, "Some LoRA adapters failed to load; skipping application");
+      // Optionally, return an error code or fail the operation
+  } else {
+    return invalid_argument;
+  }
   return success;
+
 }
 
 // Auto-cleanup function: removes old/excess sessions
