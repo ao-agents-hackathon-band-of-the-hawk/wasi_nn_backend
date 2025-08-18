@@ -118,7 +118,7 @@ int test_lora_single_adapter() {
     }
 
     // Initialize backend with single LoRA configuration
-    err = wasi_init_backend_with_config(&backend_ctx, lora_single_adapter_config, 
+    err = wasi_init_backend_with_config(&backend_ctx, lora_single_adapter_config,
                                         strlen(lora_single_adapter_config));
     if (err != success) {
         printf("❌ Backend initialization with LoRA config failed: %d\n", err);
@@ -127,7 +127,7 @@ int test_lora_single_adapter() {
 
     // Try to load model with LoRA adapter
     err = wasi_load_by_name_with_config(backend_ctx, MODEL_FILE, strlen(MODEL_FILE),
-                                        lora_single_adapter_config, 
+                                        lora_single_adapter_config,
                                         strlen(lora_single_adapter_config), &g);
 
     if (err == success) {
@@ -150,13 +150,13 @@ int test_lora_single_adapter() {
 
         uint8_t output_buffer[512];
         uint32_t output_size = sizeof(output_buffer);
-        
-        err = wasi_run_inference(backend_ctx, exec_ctx, 0, &input_tensor, 
+
+        err = wasi_run_inference(backend_ctx, exec_ctx, 0, &input_tensor,
                                  output_buffer, &output_size, NULL, 0);
 
         if (err == success && output_size > 0) {
             output_buffer[output_size < sizeof(output_buffer) ? output_size : sizeof(output_buffer)-1] = '\0';
-            printf("✅ Inference with LoRA: %.100s%s\n", 
+            printf("✅ Inference with LoRA: %.100s%s\n",
                    (char*)output_buffer, output_size > 100 ? "..." : "");
         } else {
             printf("⚠️ Inference failed: %d\n", err);
@@ -190,7 +190,7 @@ int test_lora_multi_adapter() {
     }
 
     // Initialize backend with multi LoRA config
-    err = wasi_init_backend_with_config(&backend_ctx, lora_multi_adapter_config, 
+    err = wasi_init_backend_with_config(&backend_ctx, lora_multi_adapter_config,
                                         strlen(lora_multi_adapter_config));
     if (err != success) {
         printf("❌ Backend initialization with multi-LoRA config failed: %d\n", err);
@@ -199,7 +199,7 @@ int test_lora_multi_adapter() {
 
     // Load model with multiple LoRA adapters
     err = wasi_load_by_name_with_config(backend_ctx, MODEL_FILE, strlen(MODEL_FILE),
-                                        lora_multi_adapter_config, 
+                                        lora_multi_adapter_config,
                                         strlen(lora_multi_adapter_config), &g);
 
     if (err == success) {
