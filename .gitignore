@@ -5,3 +5,5 @@ lib/
 main
 main.o
 *.gguf
+*.lock
+*codebase.md
