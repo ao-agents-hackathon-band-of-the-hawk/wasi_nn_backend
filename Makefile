@@ -13,7 +13,7 @@ all: build
 build:
 	@echo "Building WASI-NN backend library..."
 	@if [ ! -d "build" ]; then mkdir -p build; fi
-	cd build && cmake .. && $(MAKE) -j16
+	cd build && cmake .. && $(MAKE) -j 12
 	@echo "✅ WASI-NN backend library built successfully"
 
 
