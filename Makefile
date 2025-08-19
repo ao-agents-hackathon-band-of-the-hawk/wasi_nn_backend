@@ -7,13 +7,16 @@ CXXFLAGS = -Wall -Wextra -Wformat -Wformat-security -ffunction-sections -fdata-s
 # Linker flags for main project
 LDFLAGS = -ldl
 
+# Default CUDA architecture
+ARCH ?= 86
+
 all: build
 
 # Build the main WASI-NN backend library
 build:
-	@echo "Building WASI-NN backend library..."
+	@echo "Building WASI-NN backend library with CUDA architecture: ${ARCH}"
 	@if [ ! -d "build" ]; then mkdir -p build; fi
-	cd build && cmake .. && $(MAKE) -j 12
+	cd build && cmake -D CUDA_ARCHITECTURE=${ARCH} .. && $(MAKE) -j 12
 	@echo "✅ WASI-NN backend library built successfully"
 
 
