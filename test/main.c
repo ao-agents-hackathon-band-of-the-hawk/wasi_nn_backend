@@ -26,6 +26,16 @@ extern int test_file_logging();
 // Model tests
 extern int test_safe_model_switch();
 
+//Add forward declarations for LoRA tests from test_lora.c
+extern int test_lora_basic_loading();
+extern int test_lora_single_adapter();
+extern int test_lora_multi_adapter();
+extern int test_lora_dynamic_loading();
+extern int test_lora_scaling();
+extern int test_lora_error_handling();
+extern int test_lora_runtime_override();
+extern int test_lora_performance();
+
 // Stopping criteria tests
 extern int test_advanced_stopping_criteria();
 extern int test_grammar_based_stopping();
@@ -85,6 +95,16 @@ int main() {
     RUN_TEST("Dynamic Timeout and Context-Aware Stopping", test_dynamic_timeout_stopping);
     RUN_TEST("Token-Based and Pattern Stopping Conditions", test_token_pattern_stopping);
     RUN_TEST("Advanced Stopping Criteria Integration", test_advanced_stopping_integration);
+    
+    TEST_SECTION("LoRA Adapter Tests (test_lora.c)");
+    RUN_TEST("Basic LoRA Loading", test_lora_basic_loading);
+    RUN_TEST("Single LoRA Adapter", test_lora_single_adapter);
+    RUN_TEST("Multiple LoRA Adapters", test_lora_multi_adapter);
+    RUN_TEST("Dynamic LoRA Loading", test_lora_dynamic_loading);
+    RUN_TEST("LoRA Scaling", test_lora_scaling);
+    RUN_TEST("LoRA Error Handling", test_lora_error_handling);
+    RUN_TEST("LoRA Runtime Override", test_lora_runtime_override);
+    RUN_TEST("LoRA Performance Impact", test_lora_performance);
 
     TEST_SECTION("Error Handling and Task Management Tests (test_error.c)");
     RUN_TEST("Error Handling and Edge Cases", test_error_handling);
@@ -110,6 +130,7 @@ int main() {
     printf("• test_logging.c      - Logging system configuration and output\n");
     printf("• test_model.c        - Model switching functionality\n");
     printf("• test_stopping.c     - Advanced stopping criteria\n");
+    printf("• test_lora.c         - LoRA adapter loading and inference\n");
     printf("• test_error.c        - Error handling, task queues, and edge cases\n");
     printf("• main.c              - Test runner and coordinator\n");
     
@@ -129,6 +150,9 @@ int main() {
         printf("✅ Auto-cleanup session management working!\n");
         printf("✅ Task queue system with priority scheduling!\n");
         printf("✅ Signal protection for dangerous edge cases!\n");
+        printf("✅ LoRA adapter support fully integrated!\n");
+        printf("✅ Single and multi-adapter loading validated!\n");
+        printf("✅ Dynamic LoRA scaling and runtime overrides working!\n");
     } else {
         printf("\n⚠️  Some tests failed. Please review the output above.\n");
         printf("Check individual test files for specific failures.\n");
@@ -139,7 +163,7 @@ int main() {
     // Cleanup with safety checks
     if (handle) {
         // Give some time for any background GPU operations to complete
-        sleep(100000);  // 100ms delay
+        usleep(100000);  // 100ms delay
         
         // Safely close the dynamic library
         int dlclose_result = dlclose(handle);
@@ -150,7 +174,7 @@ int main() {
     }
 
     // Force a small delay before program exit to allow GPU cleanup
-    sleep(50000);  // 50ms delay
+    usleep(50000);  // 50ms delay
 
     return (test_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

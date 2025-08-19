@@ -1,5 +1,5 @@
 #include "test_common.h"
-
+#include <unistd.h>
 // Test 9: Session Management and Chat History
 int test_session_management() {
     void *backend_ctx = NULL;

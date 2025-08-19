@@ -1,4 +1,5 @@
 #include "test_common.h"
+#include <unistd.h>
 
 // Phase 5.1 configuration with comprehensive logging settings
 static const char* phase51_logging_config = "{\n"

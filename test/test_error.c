@@ -1,4 +1,5 @@
 #include "test_common.h"
+#include <unistd.h>
 
 // Phase 4.2 configuration with task queue settings
 static const char* phase42_config = "{\n"

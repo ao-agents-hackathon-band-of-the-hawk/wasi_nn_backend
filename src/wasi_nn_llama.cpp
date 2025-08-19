@@ -188,7 +188,7 @@ struct LlamaChatContext
   uint32_t default_task_timeout_ms = 30000;
   bool priority_scheduling_enabled = true;
   bool fair_scheduling_enabled = true;
-  
+
   // Queue monitoring and limits
   uint32_t queue_warning_threshold = 40;    // Warn when queue is 80% full
   uint32_t queue_reject_threshold = 50;     // Reject when queue is 100% full
