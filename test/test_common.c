@@ -21,7 +21,7 @@ compute_func_t wasi_compute = NULL;
 get_output_func_t wasi_get_output = NULL;
 deinit_backend_func_t wasi_deinit_backend = NULL;
 
-const char *MODEL_FILE = "./test/qwen2.5-14b-instruct-q2_k.gguf";
+const char *MODEL_FILE = "./models/qwen2.5-14b-instruct-q2_k.gguf";
 const char *MODEL_CONFIG = "{\"n_gpu_layers\":0,\"ctx_size\":512,\"n_predict\":10}";
 tensor_dimensions global_text_dims = {NULL, 0};
 
