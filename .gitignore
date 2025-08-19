@@ -5,3 +5,4 @@ lib/
 main
 main.o
 *.gguf
+*codebase.md
