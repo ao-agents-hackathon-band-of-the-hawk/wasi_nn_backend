@@ -224,6 +224,9 @@ struct LlamaChatContext
   bool model_swapping_in_progress;
   std::mutex model_swap_mutex;
   common_params backup_params;
+
+  //LoRA adapters
+  std::vector<common_adapter_lora_info> lora_adapters;
   
   // Model compatibility info
   int64_t model_context_length;
@@ -248,7 +251,7 @@ struct LlamaChatContext
         log_instance(nullptr), log_initialized(false),
         current_model_path(""), current_model_version(""),
         model_swapping_in_progress(false), model_context_length(0), model_vocab_size(0),
-        model_architecture(""), model_name(""),
+        model_architecture(""), model_name(""), lora_adapters(),
         batch_processing_enabled(true), batch_size(512) {}
   
   // Destructor will be defined after wasi_nn_task_queue definition
@@ -472,6 +475,11 @@ static wasi_nn_error safe_model_switch(LlamaChatContext *chat_ctx, const char *f
       WASI_NN_LOG_INFO(chat_ctx, "Previous model restored successfully");
       chat_ctx->model_swapping_in_progress = false;
       return runtime_error;
+    }
+  
+    if (!chat_ctx->server_ctx.load_adapter(new_params) || !chat_ctx->server_ctx.model){
+        WASI_NN_LOG_ERROR(chat_ctx, "Failed to load LoRA Adapter");
+        return runtime_error;
     }
     
     // Step 7: Reinitialize server context
@@ -1488,6 +1496,24 @@ static void parse_config_to_params(const char *config_json,
     parse_model_params(root);
   }
 
+
+  cJSON *lora_array = cJSON_GetObjectItem(root, "lora_adapters");
+  if (cJSON_IsArray(lora_array)) {
+      params.lora_adapters.clear();
+      cJSON *lora_item;
+      cJSON_ArrayForEach(lora_item, lora_array) {
+          cJSON *path = cJSON_GetObjectItem(lora_item, "path");
+          cJSON *scale = cJSON_GetObjectItem(lora_item, "scale");
+          
+          if (cJSON_IsString(path) && cJSON_IsNumber(scale)) {
+              common_adapter_lora_info adapter;
+              adapter.path = cJSON_GetStringValue(path);
+              adapter.scale = (float)cJSON_GetNumberValue(scale);
+              adapter.ptr = nullptr; // Will be set during loading
+              params.lora_adapters.push_back(adapter);
+          }
+      }
+  }
   // Parse sampling parameters - Legacy flat structure first (backward compatibility)
   params.sampling.temp = cjson_get_value(root, "temp", params.sampling.temp);
   params.sampling.temp = cjson_get_value(root, "temperature", params.sampling.temp);  // OpenAI compatibility
@@ -2121,6 +2147,20 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
                            batch_size, chat_ctx->batch_size);
         }
       }
+
+      cJSON *lora_array = cJSON_GetObjectItem(json, "lora_adapters");
+        if (cJSON_IsArray(lora_array)) {
+            cJSON *lora_item;
+            cJSON_ArrayForEach(lora_item, lora_array) {
+                cJSON *path = cJSON_GetObjectItem(lora_item, "path");
+                cJSON *scale = cJSON_GetObjectItem(lora_item, "scale");
+                WASI_NN_LOG_INFO(chat_ctx, "the path of LoRA adapter is %s", path->valuestring);
+                WASI_NN_LOG_INFO(chat_ctx, "the path of scale is %f", scale->valuedouble);
+                }
+            }
+        
+
+
 
       cJSON_Delete(json);
     }

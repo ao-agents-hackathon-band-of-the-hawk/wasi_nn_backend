@@ -22,7 +22,17 @@ int test_safe_model_switch() {
         "  \"logging\": {"
         "    \"level\": \"info\","
         "    \"enable_debug\": true"
-        "  }"
+        "  },"
+        "  \"lora_adapters\": ["
+        "    {"
+        "      \"path\": \"./models/LoRA_adapter1.gguf\","
+        "      \"scale\": 1.0"
+        "    },"
+        "    {"
+        "      \"path\": \"./models/LoRA_adapter2.gguf\","
+        "      \"scale\": 0.8"
+        "    }"
+        "  ]"
         "}";
 
     // Define model paths

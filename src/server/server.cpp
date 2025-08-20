@@ -2260,6 +2260,27 @@ struct server_context
         return true;
     }
 
+    // In server.cpp, fix the load_adapter method
+bool load_adapter(const common_params &params) {
+    if (!model) {
+        return false;
+    }
+    
+    for (const auto& adapter : params.lora_adapters) {
+        llama_adapter_lora* adapter_ptr = llama_adapter_lora_init(model, adapter.path.c_str());
+        if (adapter_ptr == nullptr) {
+            SRV_ERR("Failed to load LoRA adapter: %s", adapter.path.c_str());
+            return false;
+        }
+        SRV_INF("Successfully loaded LoRA adapter: %s (scale: %.2f)", 
+                          adapter.path.c_str(), adapter.scale);
+        }
+        
+    return true;
+}
+
+
+
     void init()
     {
         const int32_t n_ctx_slot = n_ctx / params_base.n_parallel;
