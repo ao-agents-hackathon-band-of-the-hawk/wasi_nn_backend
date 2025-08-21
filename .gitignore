@@ -6,3 +6,4 @@ main
 main.o
 *.gguf
 *codebase.md
+*.log
