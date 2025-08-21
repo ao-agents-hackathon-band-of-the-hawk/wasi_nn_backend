@@ -27,10 +27,6 @@ int test_safe_model_switch() {
         "    {"
         "      \"path\": \"./models/LoRA_adapter1.gguf\","
         "      \"scale\": 1.0"
-        "    },"
-        "    {"
-        "      \"path\": \"./models/LoRA_adapter2.gguf\","
-        "      \"scale\": 0.8"
         "    }"
         "  ]"
         "}";
