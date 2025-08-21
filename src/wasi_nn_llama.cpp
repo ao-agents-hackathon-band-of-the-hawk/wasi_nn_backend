@@ -2507,9 +2507,6 @@ __attribute__((visibility("default"))) wasi_nn_error init_execution_context_with
     return result;
   }
 
-  // Initialize the server context
-  chat_ctx->server_ctx.init();
-
   // Initialize samplers for all slots (crucial for inference)
   for (auto &slot : chat_ctx->server_ctx.slots) {
     if (slot.smpl != nullptr) {
