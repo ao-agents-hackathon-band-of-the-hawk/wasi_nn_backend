@@ -29,6 +29,13 @@
 #include <deque>
 #include <thread>
 #include <condition_variable>
+#include <mutex>
+#include <unordered_set>
+
+// This is not a true global. It is static to this compilation unit,
+// effectively private to the shared library's implementation.
+static std::mutex g_context_registry_mutex;
+static std::unordered_set<void*> g_active_contexts;
 
 // Enhanced logging macros that work with both old and new systems
 #define WASI_NN_LOG_DEBUG(ctx, fmt, ...) \
@@ -2251,12 +2258,32 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
       "Performance config: batch_processing=%s, batch_size=%d",
       chat_ctx->batch_processing_enabled ? "true" : "false",
       chat_ctx->batch_size);
+
+  {
+      std::lock_guard<std::mutex> lock(g_context_registry_mutex);
+      g_active_contexts.insert(chat_ctx);
+  }
+
+
   *ctx = (void *)chat_ctx;
   return success;
 }
 
 __attribute__((visibility("default"))) wasi_nn_error deinit_backend(void *ctx)
 {
+    if (!ctx) {
+        return invalid_argument;
+    }
+
+    std::lock_guard<std::mutex> lock(g_context_registry_mutex);
+
+    // Check if the context is in our set of active contexts.
+    // This safely handles calls with dangling pointers.
+    if (g_active_contexts.find(ctx) == g_active_contexts.end()) {
+        NN_WARN_PRINTF("Attempted to deinit an invalid or already freed backend context.");
+        return invalid_argument;
+    }
+
   LlamaChatContext *chat_ctx = (LlamaChatContext *)ctx;
   if (!chat_ctx)
     return invalid_argument;
@@ -2266,6 +2293,10 @@ __attribute__((visibility("default"))) wasi_nn_error deinit_backend(void *ctx)
 
   llama_backend_free();
   delete chat_ctx;
+
+  // IMPORTANT: Remove the context from the registry.
+  g_active_contexts.erase(ctx);
+
   return success;
 }
 

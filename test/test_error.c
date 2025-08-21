@@ -376,7 +376,8 @@ int test_dangerous_edge_cases() {
         // Test multiple cleanup calls
         err = wasi_deinit_backend(backend_ctx);
         printf("✅ First cleanup successful\n");
-        backend_ctx = NULL; // Nullify the pointer after freeing
+        //backend_ctx = NULL; // Nullify the pointer after freeing
+
         err = wasi_deinit_backend(backend_ctx);
         printf("✅ Second cleanup handled (error %d expected)\n", err);
     }
