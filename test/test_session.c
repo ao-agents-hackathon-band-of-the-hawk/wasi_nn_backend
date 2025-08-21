@@ -29,7 +29,7 @@ int test_session_management() {
     err = wasi_run_inference(backend_ctx, exec_ctx, 0, &input_tensor1, output_buffer1, &output_size1, NULL, 0);
     ASSERT_SUCCESS(err, "First inference failed");
 
-    printf("✅ First response: %.60s%s\n", 
+    printf("✅ First response: %.60s%s\n",
            (char*)output_buffer1, output_size1 > 60 ? "..." : "");
 
     // Second message (should remember context)
@@ -42,7 +42,7 @@ int test_session_management() {
     err = wasi_run_inference(backend_ctx, exec_ctx, 0, &input_tensor2, output_buffer2, &output_size2, NULL, 0);
     ASSERT_SUCCESS(err, "Second inference failed");
 
-    printf("✅ Context-aware response: %.60s%s\n", 
+    printf("✅ Context-aware response: %.60s%s\n",
            (char*)output_buffer2, output_size2 > 60 ? "..." : "");
 
     // Cleanup
@@ -55,7 +55,7 @@ int test_session_management() {
 // Test 10: Auto Session Cleanup Validation
 int test_auto_session_cleanup() {
     printf("🧪 Testing auto_cleanup_sessions functionality...\n");
-    
+
     void *backend_ctx = NULL;
     graph g = 0;
     wasi_nn_error err;
@@ -67,7 +67,7 @@ int test_auto_session_cleanup() {
         "\"auto_cleanup_enabled\":true,"
         "\"max_concurrent\":2"
     "}";
-    
+
     err = wasi_init_backend_with_config(&backend_ctx, config, strlen(config));
     ASSERT_SUCCESS(err, "Backend initialization failed");
 
@@ -78,45 +78,45 @@ int test_auto_session_cleanup() {
 
     // Test 1: Create multiple sessions to test LRU eviction
     printf("📝 Test 1: Creating multiple sessions for LRU eviction test...\n");
-    
+
     graph_execution_context exec_ctx1, exec_ctx2, exec_ctx3, exec_ctx4;
-    
+
     // Create session 1
     err = wasi_init_execution_context_with_session_id(backend_ctx, "session_1", &exec_ctx1);
     ASSERT_SUCCESS(err, "Session 1 creation failed");
     printf("✅ Created session_1 (exec_ctx: %u)\n", exec_ctx1);
-    
+
     // Small delay to differentiate timestamps
     usleep(10000); // 10ms
-    
+
     // Create session 2
     err = wasi_init_execution_context_with_session_id(backend_ctx, "session_2", &exec_ctx2);
     ASSERT_SUCCESS(err, "Session 2 creation failed");
     printf("✅ Created session_2 (exec_ctx: %u)\n", exec_ctx2);
-    
+
     usleep(10000); // 10ms
-    
+
     // Create session 3
     err = wasi_init_execution_context_with_session_id(backend_ctx, "session_3", &exec_ctx3);
     ASSERT_SUCCESS(err, "Session 3 creation failed");
     printf("✅ Created session_3 (exec_ctx: %u)\n", exec_ctx3);
-    
+
     usleep(10000); // 10ms
-    
+
     // Now try to create session 4 - should trigger LRU cleanup of session_1
     printf("📝 Creating session_4 - should trigger LRU cleanup...\n");
     err = wasi_init_execution_context_with_session_id(backend_ctx, "session_4", &exec_ctx4);
     ASSERT_SUCCESS(err, "Session 4 creation failed");
     printf("✅ Created session_4 (exec_ctx: %u) - LRU cleanup should have occurred\n", exec_ctx4);
-    
+
     // Test 2: Verify that session_1 was cleaned up by trying to use it
     printf("📝 Test 2: Verifying session_1 was cleaned up...\n");
-    
+
     tensor input_tensor;
     setup_tensor(&input_tensor, "Test message");
     uint8_t output_buffer[256];
     uint32_t output_size = sizeof(output_buffer);
-    
+
     // This should fail because session_1 should have been cleaned up
     err = wasi_run_inference(backend_ctx, exec_ctx1, 0, &input_tensor, output_buffer, &output_size, NULL, 0);
     if (err != 0) {
@@ -124,20 +124,20 @@ int test_auto_session_cleanup() {
     } else {
         printf("⚠️  Session_1 still exists (cleanup may not be working)\n");
     }
-    
+
     // Test 3: Idle timeout cleanup
     printf("📝 Test 3: Testing idle timeout cleanup...\n");
-    
+
     // Wait for idle timeout to trigger
     printf("⏳ Waiting 150ms for idle timeout to trigger...\n");
     usleep(150000); // 150ms - longer than idle_timeout_ms (100ms)
-    
+
     // Try to create a new session - this should trigger idle timeout cleanup
     graph_execution_context exec_ctx5;
     err = wasi_init_execution_context_with_session_id(backend_ctx, "session_5", &exec_ctx5);
     ASSERT_SUCCESS(err, "Session 5 creation failed");
     printf("✅ Created session_5 - idle timeout cleanup should have occurred\n");
-    
+
     // Test if old sessions were cleaned up by idle timeout
     err = wasi_run_inference(backend_ctx, exec_ctx2, 0, &input_tensor, output_buffer, &output_size, NULL, 0);
     if (err != 0) {
@@ -145,39 +145,39 @@ int test_auto_session_cleanup() {
     } else {
         printf("⚠️  Session_2 still exists (idle timeout cleanup may not be working)\n");
     }
-    
+
     // Test 4: Test auto_cleanup_enabled flag
     printf("📝 Test 4: Testing auto_cleanup_enabled flag...\n");
-    
+
     // Cleanup current backend
     wasi_deinit_backend(backend_ctx);
-    
+
     // Initialize backend with auto cleanup disabled
     const char *config_disabled = "{"
         "\"max_sessions\":2,"
         "\"idle_timeout_ms\":50,"
         "\"auto_cleanup_enabled\":false"
     "}";
-    
+
     err = wasi_init_backend_with_config(&backend_ctx, config_disabled, strlen(config_disabled));
     ASSERT_SUCCESS(err, "Backend initialization with disabled cleanup failed");
-    
+
     err = wasi_load_by_name_with_config(backend_ctx, MODEL_FILE, strlen(MODEL_FILE),
                                   model_config, strlen(model_config), &g);
     ASSERT_SUCCESS(err, "Model loading failed");
-    
+
     // Create sessions that would normally be cleaned up
     graph_execution_context exec_ctx_no_cleanup1, exec_ctx_no_cleanup2, exec_ctx_no_cleanup3;
-    
+
     err = wasi_init_execution_context_with_session_id(backend_ctx, "no_cleanup_1", &exec_ctx_no_cleanup1);
     ASSERT_SUCCESS(err, "No cleanup session 1 creation failed");
-    
+
     err = wasi_init_execution_context_with_session_id(backend_ctx, "no_cleanup_2", &exec_ctx_no_cleanup2);
     ASSERT_SUCCESS(err, "No cleanup session 2 creation failed");
-    
+
     // Wait for what would be idle timeout
     usleep(100000); // 100ms
-    
+
     // Try to create a third session - should hit concurrency limit since cleanup is disabled
     err = wasi_init_execution_context_with_session_id(backend_ctx, "no_cleanup_3", &exec_ctx_no_cleanup3);
     if (err != 0) {
@@ -186,13 +186,13 @@ int test_auto_session_cleanup() {
         printf("⚠️  Session created despite concurrency limit (cleanup may have still occurred)\n");
         wasi_close_execution_context(backend_ctx, exec_ctx_no_cleanup3);
     }
-    
+
     // Cleanup
     wasi_close_execution_context(backend_ctx, exec_ctx_no_cleanup1);
     wasi_close_execution_context(backend_ctx, exec_ctx_no_cleanup2);
     wasi_close_execution_context(backend_ctx, exec_ctx5);
     wasi_deinit_backend(backend_ctx);
-    
+
     printf("✅ Auto session cleanup validation completed\n");
     return 1;
 }
@@ -203,8 +203,9 @@ int test_concurrency_management() {
     graph g = 0;
     wasi_nn_error err;
 
-    // Setup backend with limited concurrency
-    const char *config = "{\"max_concurrent\":2,\"queue_size\":5}";
+    // Setup backend with limited concurrency AND auto-cleanup disabled for the test
+    // CORRECTED KEY: "auto_cleanup" instead of "auto_cleanup_enabled"
+    const char *config = "{\"max_sessions\":2,\"auto_cleanup\":false}";
     err = wasi_init_backend_with_config(&backend_ctx, config, strlen(config));
     ASSERT_SUCCESS(err, "Backend initialization failed");
 
@@ -215,26 +216,31 @@ int test_concurrency_management() {
 
     graph_execution_context ctx1, ctx2, ctx3;
 
-    // First two should succeed
-    err = wasi_init_execution_context(backend_ctx, g, &ctx1);
+    // First two should succeed with unique session IDs
+    err = wasi_init_execution_context_with_session_id(backend_ctx, "session-1", &ctx1);
     ASSERT_SUCCESS(err, "First execution context failed");
+    printf("✅ Created context for session-1\n");
 
-    err = wasi_init_execution_context(backend_ctx, g, &ctx2);
+    err = wasi_init_execution_context_with_session_id(backend_ctx, "session-2", &ctx2);
     ASSERT_SUCCESS(err, "Second execution context failed");
+    printf("✅ Created context for session-2\n");
 
-    // Third should fail due to concurrency limit
-    err = wasi_init_execution_context(backend_ctx, g, &ctx3);
+
+    // Third should fail because the session limit is reached and auto-cleanup is off
+    err = wasi_init_execution_context_with_session_id(backend_ctx, "session-3", &ctx3);
     ASSERT(err == runtime_error, "Concurrency limit not enforced");
 
-    printf("✅ Concurrency limit properly enforced (2/2 slots used)\n");
+    printf("✅ Concurrency limit properly enforced (2/2 sessions used), third creation failed as expected.\n");
 
     // Close one context and try again
     wasi_close_execution_context(backend_ctx, ctx1);
+    printf("✅ Closed context for session-1\n");
 
-    err = wasi_init_execution_context(backend_ctx, g, &ctx3);
+
+    err = wasi_init_execution_context_with_session_id(backend_ctx, "session-4", &ctx3);
     ASSERT_SUCCESS(err, "Context creation failed after slot became available");
 
-    printf("✅ Context creation successful after slot freed (2/2 slots used)\n");
+    printf("✅ Context creation successful for session-4 after slot was freed (2/2 sessions used)\n");
 
     // Cleanup
     wasi_close_execution_context(backend_ctx, ctx2);
