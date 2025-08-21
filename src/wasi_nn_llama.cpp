@@ -85,46 +85,46 @@ struct wasi_nn_runtime_params
   int32_t top_k = -1;
   float min_p = -1.0f;
   float typical_p = -1.0f;
-  
+
   // Penalty parameters
   float repeat_penalty = -1.0f;
   float frequency_penalty = -1.0f;
   float presence_penalty = -1.0f;
   int32_t penalty_last_n = -1;
-  
+
   // Generation control
   int32_t max_tokens = -1;
   int32_t seed = 1234; // Default seed, can be overridden
   bool ignore_eos = false;  // Default to false, but can be overridden
   bool ignore_eos_set = false;  // Flag to indicate if ignore_eos was explicitly set
-  
+
   // DRY sampling parameters
   float dry_multiplier = -1.0f;
   float dry_base = -1.0f;
   int32_t dry_allowed_length = -1;
   int32_t dry_penalty_last_n = -1;
-  
+
   // Dynamic temperature parameters
   float dynatemp_range = -1.0f;
   float dynatemp_exponent = -1.0f;
-  
+
   // Mirostat parameters
   int32_t mirostat = -1;
   float mirostat_tau = -1.0f;
   float mirostat_eta = -1.0f;
-  
+
   // Other generation parameters
   int32_t n_probs = -1;
   int32_t min_keep = -1;
-  
+
   // Stop sequences (optional)
   std::vector<std::string> stop_sequences;
   bool stop_sequences_set = false;
-  
+
   // Grammar (optional)
   std::string grammar;
   bool grammar_set = false;
-  
+
   wasi_nn_runtime_params() = default;
 };
 
@@ -139,8 +139,8 @@ struct wasi_nn_task
   uint32_t timeout_ms = 30000; // Default 30 second timeout
   std::string prompt;
   bool is_queued = false;
-  
-  wasi_nn_task() : created_at(std::chrono::steady_clock::now()) 
+
+  wasi_nn_task() : created_at(std::chrono::steady_clock::now())
   {
     timeout_at = created_at + std::chrono::milliseconds(timeout_ms);
   }
@@ -172,17 +172,17 @@ struct LlamaChatContext
 
   // Enhanced concurrency and task management (Phase 4.2)
   uint32_t queue_size;
-  
+
   // Advanced task queue system
   std::shared_ptr<wasi_nn_task_queue> task_queue;
   std::thread task_processor_thread;
   bool task_processing_enabled = true;
-  
+
   // Task timeout and priority settings
   uint32_t default_task_timeout_ms = 30000;
   bool priority_scheduling_enabled = true;
   bool fair_scheduling_enabled = true;
-  
+
   // Queue monitoring and limits
   uint32_t queue_warning_threshold = 40;    // Warn when queue is 80% full
   uint32_t queue_reject_threshold = 50;     // Reject when queue is 100% full
@@ -192,7 +192,7 @@ struct LlamaChatContext
   bool context_shifting_enabled;
   std::string cache_strategy;
   uint32_t max_cache_tokens;
-  
+
   // Phase 4.3: Advanced Memory Management
   uint32_t n_keep_tokens = 256;             // Number of tokens to keep when shifting context
   uint32_t n_discard_tokens = 0;            // Number of tokens to discard (0 = auto half)
@@ -201,7 +201,7 @@ struct LlamaChatContext
   bool enable_token_cache_reuse = true;
   std::string cache_deletion_strategy = "lru";  // lru, fifo, or smart
   uint32_t max_memory_mb = 0;               // 0 = no limit
-  
+
   // Memory monitoring
   std::atomic<uint64_t> current_memory_usage{0};
   std::atomic<uint32_t> cache_hits{0};
@@ -213,11 +213,11 @@ struct LlamaChatContext
   std::string log_file;
   bool enable_timestamps;
   bool enable_colors;
-  
+
   // Logging system state
   struct common_log * log_instance;
   bool log_initialized;
-  
+
   // Phase 5.2: Model Hot-Swapping
   std::string current_model_path;
   std::string current_model_version;
@@ -227,7 +227,7 @@ struct LlamaChatContext
 
   //LoRA adapters
   std::vector<common_adapter_lora_info> lora_adapters;
-  
+
   // Model compatibility info
   int64_t model_context_length;
   int64_t model_vocab_size;
@@ -253,7 +253,7 @@ struct LlamaChatContext
         model_swapping_in_progress(false), model_context_length(0), model_vocab_size(0),
         model_architecture(""), model_name(""), lora_adapters(),
         batch_processing_enabled(true), batch_size(512) {}
-  
+
   // Destructor will be defined after wasi_nn_task_queue definition
   ~LlamaChatContext();
 };
@@ -267,30 +267,30 @@ struct wasi_nn_task_queue
   std::deque<wasi_nn_task> high_priority_queue;    // Priority 3 (urgent)
   std::deque<wasi_nn_task> normal_priority_queue;  // Priority 1-2 (normal/high)
   std::deque<wasi_nn_task> low_priority_queue;     // Priority 0 (low)
-  
+
   std::mutex queue_mutex;
   std::condition_variable queue_condition;
-  
+
   uint32_t max_queue_size = 50;
   uint32_t current_size = 0;
   bool running = true;
   int next_task_id = 1;
-  
+
   // Queue statistics
   uint32_t tasks_queued = 0;
   uint32_t tasks_completed = 0;
   uint32_t tasks_timeout = 0;
   uint32_t tasks_rejected = 0;
-  
+
   // Add task to appropriate priority queue
   bool enqueue_task(wasi_nn_task &&task, LlamaChatContext* ctx = nullptr);
-  
+
   // Get next task based on priority
   bool dequeue_task(wasi_nn_task &task, LlamaChatContext* ctx = nullptr);
-  
+
   // Clean up expired tasks
   void cleanup_expired_tasks();
-  
+
   // Get queue status
   void get_queue_status(uint32_t &queued, uint32_t &active, uint32_t &capacity);
 };
@@ -303,7 +303,7 @@ LlamaChatContext::~LlamaChatContext() {
     log_instance = nullptr;
     log_initialized = false;
   }
-  
+
   // Cleanup task processing thread
   if (task_processing_enabled && task_processor_thread.joinable()) {
     if (task_queue) {
@@ -323,27 +323,27 @@ static wasi_nn_error wait_for_tasks_completion(LlamaChatContext *chat_ctx, uint3
   if (!chat_ctx || !chat_ctx->task_queue) {
     return success; // No tasks to wait for
   }
-  
+
   auto start_time = std::chrono::steady_clock::now();
   auto timeout = std::chrono::milliseconds(timeout_ms);
-  
+
   NN_INFO_PRINTF("Waiting for active tasks to complete before model switch...");
-  
+
   while (true) {
     uint32_t queued = 0, active = 0, capacity = 0;
     chat_ctx->task_queue->get_queue_status(queued, active, capacity);
-    
+
     if (active == 0 && queued == 0) {
       NN_INFO_PRINTF("All tasks completed, ready for model switch");
       return success;
     }
-    
+
     auto elapsed = std::chrono::steady_clock::now() - start_time;
     if (elapsed > timeout) {
       NN_WARN_PRINTF("Timeout waiting for tasks completion, proceeding with model switch");
       return success; // Proceed anyway after timeout
     }
-    
+
     NN_DBG_PRINTF("Waiting for tasks: queued=%u, active=%u", queued, active);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
@@ -352,9 +352,9 @@ static wasi_nn_error wait_for_tasks_completion(LlamaChatContext *chat_ctx, uint3
 // Clean up all slots and contexts before model switch
 static void cleanup_all_slots(LlamaChatContext *chat_ctx) {
   if (!chat_ctx) return;
-  
+
   WASI_NN_LOG_INFO(chat_ctx, "Cleaning up all slots before model switch");
-  
+
   // Clear all slots using server context approach
   for (auto& slot : chat_ctx->server_ctx.slots) {
     // Free sampling context
@@ -362,38 +362,38 @@ static void cleanup_all_slots(LlamaChatContext *chat_ctx) {
       common_sampler_free(slot.smpl);
       slot.smpl = nullptr;
     }
-    
+
     // Free draft context
     if (slot.ctx_dft) {
       llama_free(slot.ctx_dft);
       slot.ctx_dft = nullptr;
     }
-    
+
     // Free speculative context
     if (slot.spec) {
       common_speculative_free(slot.spec);
       slot.spec = nullptr;
     }
-    
+
     // Free batch
     if (slot.batch_spec.token) {
       llama_batch_free(slot.batch_spec);
       slot.batch_spec = {};
     }
-    
+
     // Reset slot state
     slot.reset();
   }
-  
+
   // Clear all slots
   chat_ctx->server_ctx.slots.clear();
-  
+
   // Clear main batch
   if (chat_ctx->server_ctx.batch.token) {
     llama_batch_free(chat_ctx->server_ctx.batch);
     chat_ctx->server_ctx.batch = {};
   }
-  
+
   // Clear KV cache
   if (chat_ctx->server_ctx.ctx) {
     llama_memory_t mem = llama_get_memory(chat_ctx->server_ctx.ctx);
@@ -401,131 +401,131 @@ static void cleanup_all_slots(LlamaChatContext *chat_ctx) {
       llama_memory_clear(mem, true);
     }
   }
-  
+
   WASI_NN_LOG_INFO(chat_ctx, "All slots cleaned up successfully");
 }
 
 // Safely switch to a new model
-static wasi_nn_error safe_model_switch(LlamaChatContext *chat_ctx, const char *filename, 
+static wasi_nn_error safe_model_switch(LlamaChatContext *chat_ctx, const char *filename,
                                        uint32_t filename_len, const char *config) {
   if (!chat_ctx) {
     return invalid_argument;
   }
-  
+
   // Lock to prevent concurrent access during model switch
   std::lock_guard<std::mutex> lock(chat_ctx->model_swap_mutex);
-  
+
   if (chat_ctx->model_swapping_in_progress) {
     WASI_NN_LOG_WARN(chat_ctx, "Model switch already in progress, skipping");
     return runtime_error;
   }
-  
+
   chat_ctx->model_swapping_in_progress = true;
-  
+
   WASI_NN_LOG_INFO(chat_ctx, "Starting safe model switch to: %.*s", (int)filename_len, filename);
-  
+
   try {
     // Step 1: Wait for all active tasks to complete
     wasi_nn_error wait_result = wait_for_tasks_completion(chat_ctx, 30000);
     if (wait_result != success) {
       WASI_NN_LOG_WARN(chat_ctx, "Task completion wait failed, continuing with model switch");
     }
-    
+
     // Step 2: Backup current parameters
     chat_ctx->backup_params = chat_ctx->server_ctx.params_base;
-    
+
     // Step 3: Parse new configuration
     common_params new_params = chat_ctx->server_ctx.params_base;
     if (config) {
       parse_config_to_params(config, new_params, chat_ctx);
     }
     new_params.model.path = std::string(filename, filename_len);
-    
+
     WASI_NN_LOG_INFO(chat_ctx, "New model config: n_gpu_layers=%d, ctx_size=%d, batch_size=%d, threads=%d",
-                     new_params.n_gpu_layers, new_params.n_ctx, 
+                     new_params.n_gpu_layers, new_params.n_ctx,
                      new_params.n_batch, new_params.cpuparams.n_threads);
-    
+
     // Step 4: Clean up all existing slots and contexts
     cleanup_all_slots(chat_ctx);
-    
+
     // Step 5: Reset server context state
     chat_ctx->server_ctx.llama_init.model.reset();
     chat_ctx->server_ctx.llama_init.context.reset();
     chat_ctx->server_ctx.llama_init_dft.model.reset();
     chat_ctx->server_ctx.llama_init_dft.context.reset();
-    
+
     chat_ctx->server_ctx.model = nullptr;
     chat_ctx->server_ctx.ctx = nullptr;
     chat_ctx->server_ctx.model_dft = nullptr;
     chat_ctx->server_ctx.vocab = nullptr;
-    
+
     // Step 6: Load new model
     chat_ctx->server_ctx.params_base = new_params;
-    
+
     if (!chat_ctx->server_ctx.load_model(new_params)) {
       WASI_NN_LOG_ERROR(chat_ctx, "Failed to load new model, attempting to restore previous model");
-      
+
       // Attempt to restore previous model
       if (!chat_ctx->server_ctx.load_model(chat_ctx->backup_params)) {
         WASI_NN_LOG_ERROR(chat_ctx, "Failed to restore previous model - system in unstable state");
         chat_ctx->model_swapping_in_progress = false;
         return runtime_error;
       }
-      
+
       WASI_NN_LOG_INFO(chat_ctx, "Previous model restored successfully");
       chat_ctx->model_swapping_in_progress = false;
       return runtime_error;
     }
-  
+
     if (!chat_ctx->server_ctx.load_adapter(new_params) || !chat_ctx->server_ctx.model){
         WASI_NN_LOG_ERROR(chat_ctx, "Failed to load LoRA Adapter");
         return runtime_error;
     }
-    
+
     // Step 7: Reinitialize server context
     chat_ctx->server_ctx.init();
-    
+
     // Step 8: Update model information
     chat_ctx->current_model_path = std::string(filename, filename_len);
     chat_ctx->model_context_length = llama_model_n_ctx_train(chat_ctx->server_ctx.model);
     chat_ctx->model_vocab_size = llama_vocab_n_tokens(chat_ctx->server_ctx.vocab);
-    
+
     // Get model architecture and name if available
     char model_desc[256] = {0};
     if (llama_model_desc(chat_ctx->server_ctx.model, model_desc, sizeof(model_desc)) > 0) {
       chat_ctx->model_architecture = std::string(model_desc);
     }
-    
+
     // Extract model name from path
     std::string path(filename, filename_len);
     size_t last_slash = path.find_last_of("/\\");
-    chat_ctx->model_name = (last_slash != std::string::npos) ? 
+    chat_ctx->model_name = (last_slash != std::string::npos) ?
                            path.substr(last_slash + 1) : path;
-    
+
     // Generate version string
     struct stat file_stat;
     if (stat(filename, &file_stat) == 0) {
       char version_buf[64];
-      snprintf(version_buf, sizeof(version_buf), "size_%ld_mtime_%ld", 
+      snprintf(version_buf, sizeof(version_buf), "size_%ld_mtime_%ld",
                file_stat.st_size, file_stat.st_mtime);
       chat_ctx->current_model_version = std::string(version_buf);
     }
-    
+
     // Step 9: Clear all sessions (context will be lost)
     chat_ctx->sessions.clear();
     chat_ctx->next_exec_ctx_id = 1;
-    
+
     WASI_NN_LOG_INFO(chat_ctx, "Model switch completed successfully");
-    WASI_NN_LOG_INFO(chat_ctx, "Model info: name=%s, arch=%s, vocab_size=%ld, ctx_len=%ld", 
+    WASI_NN_LOG_INFO(chat_ctx, "Model info: name=%s, arch=%s, vocab_size=%ld, ctx_len=%ld",
                      chat_ctx->model_name.c_str(), chat_ctx->model_architecture.c_str(),
                      chat_ctx->model_vocab_size, chat_ctx->model_context_length);
-    
+
     chat_ctx->model_swapping_in_progress = false;
     return success;
-    
+
   } catch (const std::exception& e) {
     WASI_NN_LOG_ERROR(chat_ctx, "Exception during model switch: %s", e.what());
-    
+
     // Attempt to restore previous model
     try {
       if (!chat_ctx->server_ctx.load_model(chat_ctx->backup_params)) {
@@ -537,7 +537,7 @@ static wasi_nn_error safe_model_switch(LlamaChatContext *chat_ctx, const char *f
     } catch (...) {
       WASI_NN_LOG_ERROR(chat_ctx, "Exception during model restoration");
     }
-    
+
     chat_ctx->model_swapping_in_progress = false;
     return runtime_error;
   }
@@ -556,36 +556,36 @@ static int string_to_log_verbosity(const std::string& level) {
 // Initialize advanced logging system
 static bool initialize_advanced_logging(LlamaChatContext* chat_ctx) {
   if (!chat_ctx) return false;
-  
+
   // Initialize llama.cpp logging system
   if (chat_ctx->log_instance) {
     common_log_free(chat_ctx->log_instance);
   }
-  
+
   chat_ctx->log_instance = common_log_init();
   if (!chat_ctx->log_instance) {
     NN_ERR_PRINTF("Failed to initialize advanced logging system");
     return false;
   }
-  
+
   // Set logging verbosity based on configuration
   int verbosity = string_to_log_verbosity(chat_ctx->log_level);
   common_log_set_verbosity_thold(verbosity);
-  
+
   // Configure colors
   common_log_set_colors(chat_ctx->log_instance, chat_ctx->enable_colors);
-  
+
   // Configure timestamps and prefixes
   common_log_set_timestamps(chat_ctx->log_instance, chat_ctx->enable_timestamps);
   common_log_set_prefix(chat_ctx->log_instance, true);
-  
+
   // Configure file output if specified
   if (!chat_ctx->log_file.empty()) {
     common_log_set_file(chat_ctx->log_instance, chat_ctx->log_file.c_str());
   }
-  
+
   chat_ctx->log_initialized = true;
-  
+
   // Log system initialization success
   LOG_INF("Advanced logging system initialized");
   LOG_INF("Log level: %s (verbosity: %d)", chat_ctx->log_level.c_str(), verbosity);
@@ -595,7 +595,7 @@ static bool initialize_advanced_logging(LlamaChatContext* chat_ctx) {
   if (!chat_ctx->log_file.empty()) {
     LOG_INF("File logging: %s", chat_ctx->log_file.c_str());
   }
-  
+
   return true;
 }
 
@@ -604,7 +604,7 @@ static void log_task_operation(LlamaChatContext* chat_ctx, const std::string& op
                               int task_id, wasi_nn_task_priority priority = WASI_NN_PRIORITY_NORMAL,
                               const std::string& additional_info = "") {
   if (!chat_ctx || !chat_ctx->log_initialized) return;
-  
+
   const char* priority_str = "NORMAL";
   switch (priority) {
     case WASI_NN_PRIORITY_LOW: priority_str = "LOW"; break;
@@ -612,11 +612,11 @@ static void log_task_operation(LlamaChatContext* chat_ctx, const std::string& op
     case WASI_NN_PRIORITY_HIGH: priority_str = "HIGH"; break;
     case WASI_NN_PRIORITY_URGENT: priority_str = "URGENT"; break;
   }
-  
+
   if (additional_info.empty()) {
     LOG_INF("[TASK] %s - Task %d (Priority: %s)", operation.c_str(), task_id, priority_str);
   } else {
-    LOG_INF("[TASK] %s - Task %d (Priority: %s) - %s", 
+    LOG_INF("[TASK] %s - Task %d (Priority: %s) - %s",
             operation.c_str(), task_id, priority_str, additional_info.c_str());
   }
 }
@@ -625,25 +625,25 @@ static void log_task_operation(LlamaChatContext* chat_ctx, const std::string& op
 bool wasi_nn_task_queue::enqueue_task(wasi_nn_task &&task, LlamaChatContext* ctx)
 {
   std::unique_lock<std::mutex> lock(queue_mutex);
-  
+
   // Check if queue is at capacity
   if (current_size >= max_queue_size) {
     tasks_rejected++;
     if (ctx) {
-      WASI_NN_LOG_WARN(ctx, "Task queue full (%d/%d), rejecting task %d", 
+      WASI_NN_LOG_WARN(ctx, "Task queue full (%d/%d), rejecting task %d",
                        current_size, max_queue_size, task.id);
     } else {
-      NN_WARN_PRINTF("Task queue full (%d/%d), rejecting task %d", 
+      NN_WARN_PRINTF("Task queue full (%d/%d), rejecting task %d",
                      current_size, max_queue_size, task.id);
     }
     return false;
   }
-  
+
   // Assign task ID if not set
   if (task.id == -1) {
     task.id = next_task_id++;
   }
-  
+
   // Add to appropriate priority queue
   switch (task.priority) {
     case WASI_NN_PRIORITY_URGENT:
@@ -658,19 +658,19 @@ bool wasi_nn_task_queue::enqueue_task(wasi_nn_task &&task, LlamaChatContext* ctx
       low_priority_queue.push_back(std::move(task));
       break;
   }
-  
+
   current_size++;
   tasks_queued++;
-  
+
   // Use advanced logging if available
   if (ctx) {
-    log_task_operation(ctx, "Task Queued", task.id, task.priority, 
+    log_task_operation(ctx, "Task Queued", task.id, task.priority,
                       "Queue: " + std::to_string(current_size) + "/" + std::to_string(max_queue_size));
   } else {
-    NN_INFO_PRINTF("Task %d queued with priority %d. Queue size: %d/%d", 
+    NN_INFO_PRINTF("Task %d queued with priority %d. Queue size: %d/%d",
                    task.id, (int)task.priority, current_size, max_queue_size);
   }
-  
+
   // Notify waiting threads
   queue_condition.notify_one();
   return true;
@@ -679,22 +679,22 @@ bool wasi_nn_task_queue::enqueue_task(wasi_nn_task &&task, LlamaChatContext* ctx
 bool wasi_nn_task_queue::dequeue_task(wasi_nn_task &task, LlamaChatContext* ctx)
 {
   std::unique_lock<std::mutex> lock(queue_mutex);
-  
+
   // Wait for tasks to become available
-  queue_condition.wait(lock, [this] { 
-    return !running || 
-           !high_priority_queue.empty() || 
-           !normal_priority_queue.empty() || 
-           !low_priority_queue.empty(); 
+  queue_condition.wait(lock, [this] {
+    return !running ||
+           !high_priority_queue.empty() ||
+           !normal_priority_queue.empty() ||
+           !low_priority_queue.empty();
   });
-  
+
   if (!running) {
     return false;
   }
-  
+
   // Clean up expired tasks first
   cleanup_expired_tasks();
-  
+
   // Dequeue from highest priority queue first
   if (!high_priority_queue.empty()) {
     task = std::move(high_priority_queue.front());
@@ -708,9 +708,9 @@ bool wasi_nn_task_queue::dequeue_task(wasi_nn_task &task, LlamaChatContext* ctx)
   } else {
     return false; // No tasks available
   }
-  
+
   current_size--;
-  
+
   // Use advanced logging if available
   if (ctx) {
     log_task_operation(ctx, "Task Dequeued", task.id, task.priority,
@@ -719,7 +719,7 @@ bool wasi_nn_task_queue::dequeue_task(wasi_nn_task &task, LlamaChatContext* ctx)
     NN_INFO_PRINTF("Dequeued task %d with priority %d. Queue size: %d/%d",
                    task.id, (int)task.priority, current_size, max_queue_size);
   }
-  
+
   return true;
 }
 
@@ -727,12 +727,12 @@ void wasi_nn_task_queue::cleanup_expired_tasks()
 {
   // Note: This method assumes the queue_mutex is already locked
   auto now = std::chrono::steady_clock::now();
-  
+
   auto cleanup_queue = [&](std::deque<wasi_nn_task> &queue) {
     auto it = queue.begin();
     while (it != queue.end()) {
       if (now > it->timeout_at) {
-        NN_WARN_PRINTF("Task %d expired (created %ldms ago)", 
+        NN_WARN_PRINTF("Task %d expired (created %ldms ago)",
                        it->id,
                        std::chrono::duration_cast<std::chrono::milliseconds>(
                          now - it->created_at).count());
@@ -744,7 +744,7 @@ void wasi_nn_task_queue::cleanup_expired_tasks()
       }
     }
   };
-  
+
   cleanup_queue(high_priority_queue);
   cleanup_queue(normal_priority_queue);
   cleanup_queue(low_priority_queue);
@@ -768,16 +768,16 @@ static uint64_t get_current_memory_usage() {
   if (!file) {
     return 0;
   }
-  
+
   char line[256];
   uint64_t rss_kb = 0;
-  
+
   while (fgets(line, sizeof(line), file)) {
     if (sscanf(line, "VmRSS: %lu kB", &rss_kb) == 1) {
       break;
     }
   }
-  
+
   fclose(file);
   return rss_kb * 1024; // Convert to bytes
 }
@@ -786,11 +786,11 @@ static bool check_memory_pressure(LlamaChatContext* chat_ctx) {
   if (chat_ctx->max_memory_mb == 0) {
     return false; // No memory limit set
   }
-  
+
   uint64_t current_mb = chat_ctx->current_memory_usage.load() / (1024 * 1024);
   uint64_t max_mb = chat_ctx->max_memory_mb;
   float usage_ratio = (float)current_mb / max_mb;
-  
+
   return usage_ratio >= chat_ctx->memory_pressure_threshold;
 }
 
@@ -800,66 +800,66 @@ static wasi_nn_error perform_context_shift(LlamaChatContext* chat_ctx, uint32_t 
     NN_ERR_PRINTF("Context shifting is disabled");
     return runtime_error;
   }
-  
+
   auto& server_ctx = chat_ctx->server_ctx;
   llama_context* ctx = server_ctx.ctx;
-  
+
   if (!ctx) {
     NN_ERR_PRINTF("No context available for shifting");
     return runtime_error;
   }
-  
+
   const int n_ctx = llama_n_ctx(ctx);
   const int n_keep = chat_ctx->n_keep_tokens;
-  
+
   // In server.cpp, n_past is tracked per slot - here we use a simplified approach
   // For a full implementation, you would track n_past per session
   int n_past = n_ctx * 0.8f; // Assume 80% filled as a simplified estimate
   const int n_left = n_past - n_keep;
-  
+
   if (n_left <= 0) {
     NN_WARN_PRINTF("No tokens to shift (n_past=%d, n_keep=%d)", n_past, n_keep);
     return success;
   }
-  
-  const int n_discard = chat_ctx->n_discard_tokens > 0 ? 
+
+  const int n_discard = chat_ctx->n_discard_tokens > 0 ?
                         chat_ctx->n_discard_tokens : (n_left / 2);
-  
-  NN_INFO_PRINTF("Performing context shift: n_keep=%d, n_left=%d, n_discard=%d", 
+
+  NN_INFO_PRINTF("Performing context shift: n_keep=%d, n_left=%d, n_discard=%d",
                  n_keep, n_left, n_discard);
-  
+
   // Perform the actual context shift using llama.cpp memory functions
   llama_memory_seq_rm(llama_get_memory(ctx), session_id, n_keep, n_keep + n_discard);
   llama_memory_seq_add(llama_get_memory(ctx), session_id, n_keep + n_discard, n_past, -n_discard);
-  
+
   NN_INFO_PRINTF("Context shift completed successfully");
   return success;
 }
 
 // Partial KV cache deletion strategies
-static wasi_nn_error clear_partial_kv_cache(LlamaChatContext* chat_ctx, uint32_t session_id, 
+static wasi_nn_error clear_partial_kv_cache(LlamaChatContext* chat_ctx, uint32_t session_id,
                                            const std::string& strategy) {
   if (!chat_ctx->enable_partial_cache_deletion) {
     NN_WARN_PRINTF("Partial cache deletion is disabled");
     return invalid_argument;
   }
-  
+
   auto& server_ctx = chat_ctx->server_ctx;
   llama_context* ctx = server_ctx.ctx;
-  
+
   if (!ctx) {
     NN_ERR_PRINTF("No context available for cache deletion");
     return runtime_error;
   }
-  
+
   const int n_ctx = llama_n_ctx(ctx);
   // Simplified approach - estimate current usage as 80% of context size
   const int n_past = n_ctx * 0.8f;
-  
+
   if (strategy == "lru") {
     // Clear the oldest entries (simplified implementation)
     const int n_clear = n_past / 4; // Clear 25% of oldest entries
-    
+
     if (n_clear > 0) {
       llama_memory_seq_rm(llama_get_memory(ctx), session_id, 0, n_clear);
       NN_INFO_PRINTF("Cleared %d oldest KV cache entries using LRU strategy", n_clear);
@@ -867,7 +867,7 @@ static wasi_nn_error clear_partial_kv_cache(LlamaChatContext* chat_ctx, uint32_t
   } else if (strategy == "fifo") {
     // Clear the newest entries
     const int n_clear = n_past / 4;
-    
+
     if (n_clear > 0) {
       llama_memory_seq_rm(llama_get_memory(ctx), session_id, n_past - n_clear, n_past);
       NN_INFO_PRINTF("Cleared %d newest KV cache entries using FIFO strategy", n_clear);
@@ -876,7 +876,7 @@ static wasi_nn_error clear_partial_kv_cache(LlamaChatContext* chat_ctx, uint32_t
     // Smart deletion based on token importance (simplified)
     const int n_keep = chat_ctx->n_keep_tokens;
     const int n_clear = (n_past - n_keep) / 2;
-    
+
     if (n_clear > 0) {
       // Keep important tokens at the beginning and end, clear middle
       const int clear_start = n_keep + n_clear / 2;
@@ -887,7 +887,7 @@ static wasi_nn_error clear_partial_kv_cache(LlamaChatContext* chat_ctx, uint32_t
     NN_ERR_PRINTF("Unknown cache deletion strategy: %s", strategy.c_str());
     return invalid_argument;
   }
-  
+
   return success;
 }
 
@@ -896,37 +896,37 @@ static wasi_nn_error optimize_token_cache(LlamaChatContext* chat_ctx, uint32_t s
   if (!chat_ctx->enable_token_cache_reuse) {
     return success; // Not enabled, but not an error
   }
-  
+
   auto& server_ctx = chat_ctx->server_ctx;
   llama_context* ctx = server_ctx.ctx;
-  
+
   if (!ctx) {
     NN_ERR_PRINTF("No context available for cache optimization");
     return runtime_error;
   }
-  
+
   const int n_ctx = llama_n_ctx(ctx);
   // Simplified approach - estimate cached tokens
   const int n_cached = n_ctx * 0.7f; // Assume 70% cached
-  
+
   if (n_cached > (int)chat_ctx->max_cache_tokens) {
     // Perform cache cleanup
-    wasi_nn_error result = clear_partial_kv_cache(chat_ctx, session_id, 
+    wasi_nn_error result = clear_partial_kv_cache(chat_ctx, session_id,
                                                   chat_ctx->cache_deletion_strategy);
     if (result != success) {
       NN_WARN_PRINTF("Failed to optimize token cache: %d", result);
       return result;
     }
-    
+
     chat_ctx->cache_hits++;
     NN_INFO_PRINTF("Token cache optimized: %d tokens cached, hit ratio: %.2f%%",
-                    n_cached, 
-                    (float)chat_ctx->cache_hits.load() / 
+                    n_cached,
+                    (float)chat_ctx->cache_hits.load() /
                     (chat_ctx->cache_hits.load() + chat_ctx->cache_misses.load()) * 100.0f);
   } else {
     chat_ctx->cache_misses++;
   }
-  
+
   return success;
 }
 
@@ -934,14 +934,14 @@ static wasi_nn_error optimize_token_cache(LlamaChatContext* chat_ctx, uint32_t s
 static wasi_nn_error clear_kv_cache(LlamaChatContext* chat_ctx, uint32_t session_id) {
   auto& server_ctx = chat_ctx->server_ctx;
   llama_context* ctx = server_ctx.ctx;
-  
+
   if (!ctx) {
     NN_ERR_PRINTF("No context available for cache clearing");
     return runtime_error;
   }
-  
+
   NN_INFO_PRINTF("Clearing KV cache for session %u", session_id);
-  
+
   if (session_id == 0) {
     // Clear entire KV cache
     llama_memory_clear(llama_get_memory(ctx), true);
@@ -951,19 +951,19 @@ static wasi_nn_error clear_kv_cache(LlamaChatContext* chat_ctx, uint32_t session
     llama_memory_seq_rm(llama_get_memory(ctx), session_id, -1, -1);
     NN_INFO_PRINTF("Cleared KV cache for session %u", session_id);
   }
-  
+
   return success;
 }
 
 // Memory pressure handling
 static wasi_nn_error handle_memory_pressure(LlamaChatContext* chat_ctx) {
   NN_WARN_PRINTF("Memory pressure detected, initiating cleanup");
-  
+
   // Strategy 1: Clear partial caches for all active sessions
   wasi_nn_error result = clear_partial_kv_cache(chat_ctx, 0, chat_ctx->cache_deletion_strategy);
   if (result != success) {
     NN_WARN_PRINTF("Partial cache cleanup failed, trying full cache clear");
-    
+
     // Strategy 2: Clear entire cache if partial cleanup failed
     result = clear_kv_cache(chat_ctx, 0);
     if (result != success) {
@@ -971,10 +971,10 @@ static wasi_nn_error handle_memory_pressure(LlamaChatContext* chat_ctx) {
       return result;
     }
   }
-  
+
   // Update memory tracking
   chat_ctx->current_memory_usage.store(get_current_memory_usage());
-  
+
   NN_INFO_PRINTF("Memory pressure handling completed");
   return success;
 }
@@ -1163,16 +1163,16 @@ static bool parse_runtime_params(const char *config_json, uint32_t config_len,
   }
 
   cJSON_Delete(root);
-  
+
   if (chat_ctx) {
     WASI_NN_LOG_INFO(chat_ctx, "Runtime parameters parsed successfully");
   }
-  
+
   return true;
 }
 
 // Function to apply runtime parameters to sampling context
-static void apply_runtime_params_to_sampling(common_sampler *&sampler, 
+static void apply_runtime_params_to_sampling(common_sampler *&sampler,
                                             const wasi_nn_runtime_params &runtime_params,
                                             const llama_model *model,
                                             LlamaChatContext *chat_ctx = nullptr)
@@ -1383,17 +1383,17 @@ static void apply_runtime_params_to_sampling(common_sampler *&sampler,
   if (params_changed) {
     // Free the old sampler
     common_sampler_free(sampler);
-    
+
     // Create new sampler with updated parameters
     sampler = common_sampler_init(model, current_params);
-    
+
     if (!sampler) {
       if (chat_ctx) {
         WASI_NN_LOG_ERROR(chat_ctx, "Failed to recreate sampler with runtime parameters");
       }
       return;
     }
-    
+
     if (chat_ctx) {
       WASI_NN_LOG_INFO(chat_ctx, "Runtime parameters applied to sampler successfully - sampler recreated");
     }
@@ -1413,7 +1413,7 @@ static void parse_config_to_params(const char *config_json,
   params = common_params();
   params.conversation_mode = COMMON_CONVERSATION_MODE_ENABLED;
   params.enable_chat_template = true;
-  
+
   // Model defaults
   params.n_predict = 512;
   params.n_ctx = 2048;
@@ -1478,7 +1478,7 @@ static void parse_config_to_params(const char *config_json,
     params.n_ctx = cjson_get_value(config_obj, "n_ctx", params.n_ctx);  // Alternative name
     params.n_batch = cjson_get_value(config_obj, "batch_size", params.n_batch);
     params.n_batch = cjson_get_value(config_obj, "n_batch", params.n_batch);  // Alternative name
-    
+
     uint32_t threads = cjson_get_value(config_obj, "threads", params.cpuparams.n_threads);
     params.cpuparams.n_threads = threads;
     params.cpuparams_batch.n_threads = threads;
@@ -1504,7 +1504,7 @@ static void parse_config_to_params(const char *config_json,
       cJSON_ArrayForEach(lora_item, lora_array) {
           cJSON *path = cJSON_GetObjectItem(lora_item, "path");
           cJSON *scale = cJSON_GetObjectItem(lora_item, "scale");
-          
+
           if (cJSON_IsString(path) && cJSON_IsNumber(scale)) {
               common_adapter_lora_info adapter;
               adapter.path = cJSON_GetStringValue(path);
@@ -1579,7 +1579,7 @@ static void parse_config_to_params(const char *config_json,
           params.sampling.dry_sequence_breakers.push_back(std::string(cJSON_GetStringValue(breaker_item)));
         }
       }
-      
+
       if (params.sampling.dry_sequence_breakers.empty())
       {
         if (chat_ctx) {
@@ -1632,7 +1632,7 @@ static void parse_config_to_params(const char *config_json,
       {
         cJSON *token_item = cJSON_GetArrayItem(bias_item, 0);
         cJSON *bias_value = cJSON_GetArrayItem(bias_item, 1);
-        
+
         if (cJSON_IsNumber(token_item) && cJSON_IsNumber(bias_value))
         {
           llama_token token = (llama_token)cJSON_GetNumberValue(token_item);
@@ -1677,14 +1677,14 @@ static void parse_config_to_params(const char *config_json,
   if (params.sampling.dry_base < 1.0f)
   {
     if (chat_ctx) {
-      WASI_NN_LOG_WARN(chat_ctx, "dry_base (%.3f) < 1.0, resetting to default (%.3f)", 
+      WASI_NN_LOG_WARN(chat_ctx, "dry_base (%.3f) < 1.0, resetting to default (%.3f)",
                        params.sampling.dry_base, 1.75f);
     }
     params.sampling.dry_base = 1.75f;
   }
 
   cJSON_Delete(root);
-  
+
   if (chat_ctx) {
     WASI_NN_LOG_INFO(chat_ctx, "Configuration parsed successfully");
   }
@@ -1708,7 +1708,7 @@ static void parse_memory_config(const char *config_json, LlamaChatContext *chat_
   {
     // Context shifting settings
     chat_ctx->context_shifting_enabled = cjson_get_value(memory, "context_shifting", chat_ctx->context_shifting_enabled);
-    
+
     // Cache strategy with validation
     std::string cache_strategy = cjson_get_value(memory, "cache_strategy", chat_ctx->cache_strategy);
     if (cache_strategy == "lru" || cache_strategy == "fifo" || cache_strategy == "smart")
@@ -1718,7 +1718,7 @@ static void parse_memory_config(const char *config_json, LlamaChatContext *chat_
     }
     else if (!cache_strategy.empty() && cache_strategy != chat_ctx->cache_strategy)
     {
-      WASI_NN_LOG_WARN(chat_ctx, "Invalid cache strategy '%s', using default '%s'", 
+      WASI_NN_LOG_WARN(chat_ctx, "Invalid cache strategy '%s', using default '%s'",
                        cache_strategy.c_str(), chat_ctx->cache_strategy.c_str());
     }
 
@@ -1743,7 +1743,7 @@ static void parse_memory_config(const char *config_json, LlamaChatContext *chat_
     }
     else
     {
-      WASI_NN_LOG_WARN(chat_ctx, "n_keep_tokens (%u) too large, using default: %u", 
+      WASI_NN_LOG_WARN(chat_ctx, "n_keep_tokens (%u) too large, using default: %u",
                        n_keep_tokens, chat_ctx->n_keep_tokens);
     }
 
@@ -1759,7 +1759,7 @@ static void parse_memory_config(const char *config_json, LlamaChatContext *chat_
     }
     else
     {
-      WASI_NN_LOG_WARN(chat_ctx, "Invalid memory_pressure_threshold (%.2f), must be between 0.1 and 1.0, using default: %.2f", 
+      WASI_NN_LOG_WARN(chat_ctx, "Invalid memory_pressure_threshold (%.2f), must be between 0.1 and 1.0, using default: %.2f",
                        memory_pressure_threshold, chat_ctx->memory_pressure_threshold);
     }
 
@@ -1776,7 +1776,7 @@ static void parse_memory_config(const char *config_json, LlamaChatContext *chat_
     }
     else if (!cache_deletion_strategy.empty() && cache_deletion_strategy != chat_ctx->cache_deletion_strategy)
     {
-      WASI_NN_LOG_WARN(chat_ctx, "Invalid cache deletion strategy '%s', using default '%s'", 
+      WASI_NN_LOG_WARN(chat_ctx, "Invalid cache deletion strategy '%s', using default '%s'",
                        cache_deletion_strategy.c_str(), chat_ctx->cache_deletion_strategy.c_str());
     }
 
@@ -1796,7 +1796,7 @@ static void parse_memory_config(const char *config_json, LlamaChatContext *chat_
     }
     else
     {
-      WASI_NN_LOG_WARN(chat_ctx, "max_memory_mb (%u) too small, minimum is 64MB, using default: %u", 
+      WASI_NN_LOG_WARN(chat_ctx, "max_memory_mb (%u) too small, minimum is 64MB, using default: %u",
                        max_memory_mb, chat_ctx->max_memory_mb);
     }
 
@@ -1815,7 +1815,7 @@ static wasi_nn_error setup_threadpools(LlamaChatContext *chat_ctx)
 {
   // Access server context members through server_ctx
   common_params& params = chat_ctx->server_ctx.params_base;
-  
+
   auto *reg = ggml_backend_dev_backend_reg(
       ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU));
   auto ggml_threadpool_new_fn =
@@ -1918,7 +1918,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (max_sessions != chat_ctx->max_sessions)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid max_sessions (%u), using default: %u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid max_sessions (%u), using default: %u",
                            max_sessions, chat_ctx->max_sessions);
         }
 
@@ -1931,7 +1931,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (idle_timeout != chat_ctx->idle_timeout_ms)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid idle_timeout_ms (%u), must be between 1000-86400000, using default: %u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid idle_timeout_ms (%u), must be between 1000-86400000, using default: %u",
                            idle_timeout, chat_ctx->idle_timeout_ms);
         }
 
@@ -1944,18 +1944,18 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         {
           chat_ctx->queue_size = queue_size;
           WASI_NN_LOG_INFO(chat_ctx, "Queue size set to: %u", queue_size);
-          
+
           // Auto-adjust thresholds based on queue size
-          chat_ctx->queue_warning_threshold = std::min(chat_ctx->queue_warning_threshold, 
+          chat_ctx->queue_warning_threshold = std::min(chat_ctx->queue_warning_threshold,
                                                        static_cast<uint32_t>(queue_size * 0.8f));
           chat_ctx->queue_reject_threshold = queue_size;
         }
         else if (queue_size != chat_ctx->queue_size)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid queue_size (%u), must be between 1-10000, using default: %u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid queue_size (%u), must be between 1-10000, using default: %u",
                            queue_size, chat_ctx->queue_size);
         }
-        
+
         // Task timeout with validation
         uint32_t task_timeout = cjson_get_value(config_obj, "default_task_timeout_ms", chat_ctx->default_task_timeout_ms);
         if (task_timeout >= 1000 && task_timeout <= 600000)  // 1s to 10min
@@ -1965,23 +1965,23 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (task_timeout != chat_ctx->default_task_timeout_ms)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid default_task_timeout_ms (%u), must be between 1000-600000, using default: %u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid default_task_timeout_ms (%u), must be between 1000-600000, using default: %u",
                            task_timeout, chat_ctx->default_task_timeout_ms);
         }
-        
+
         // Boolean scheduling settings
-        chat_ctx->priority_scheduling_enabled = cjson_get_value(config_obj, "priority_scheduling_enabled", 
+        chat_ctx->priority_scheduling_enabled = cjson_get_value(config_obj, "priority_scheduling_enabled",
                                                                chat_ctx->priority_scheduling_enabled);
-        chat_ctx->fair_scheduling_enabled = cjson_get_value(config_obj, "fair_scheduling_enabled", 
+        chat_ctx->fair_scheduling_enabled = cjson_get_value(config_obj, "fair_scheduling_enabled",
                                                            chat_ctx->fair_scheduling_enabled);
-        chat_ctx->auto_queue_cleanup = cjson_get_value(config_obj, "auto_queue_cleanup", 
+        chat_ctx->auto_queue_cleanup = cjson_get_value(config_obj, "auto_queue_cleanup",
                                                       chat_ctx->auto_queue_cleanup);
-        
+
         // Queue threshold settings with validation
         uint32_t queue_warning = cjson_get_value(config_obj, "queue_warning_threshold", chat_ctx->queue_warning_threshold);
         uint32_t queue_reject = cjson_get_value(config_obj, "queue_reject_threshold", chat_ctx->queue_reject_threshold);
-        
-        if (queue_warning <= chat_ctx->queue_size && queue_reject <= chat_ctx->queue_size && 
+
+        if (queue_warning <= chat_ctx->queue_size && queue_reject <= chat_ctx->queue_size &&
             queue_warning <= queue_reject)
         {
           chat_ctx->queue_warning_threshold = queue_warning;
@@ -1990,7 +1990,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid queue thresholds (warning=%u, reject=%u), using defaults: warning=%u, reject=%u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid queue thresholds (warning=%u, reject=%u), using defaults: warning=%u, reject=%u",
                            queue_warning, queue_reject, chat_ctx->queue_warning_threshold, chat_ctx->queue_reject_threshold);
         }
       };
@@ -2014,9 +2014,9 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
       cJSON *memory_policy = cJSON_GetObjectItem(json, "memory_policy");
       if (cJSON_IsObject(memory_policy))
       {
-        chat_ctx->context_shifting_enabled = cjson_get_value(memory_policy, "context_shifting", 
+        chat_ctx->context_shifting_enabled = cjson_get_value(memory_policy, "context_shifting",
                                                             chat_ctx->context_shifting_enabled);
-        
+
         std::string cache_strategy = cjson_get_value(memory_policy, "cache_strategy", chat_ctx->cache_strategy);
         if (cache_strategy == "lru" || cache_strategy == "fifo" || cache_strategy == "smart")
         {
@@ -2025,7 +2025,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (!cache_strategy.empty() && cache_strategy != chat_ctx->cache_strategy)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid memory cache strategy '%s', using default '%s'", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid memory cache strategy '%s', using default '%s'",
                            cache_strategy.c_str(), chat_ctx->cache_strategy.c_str());
         }
 
@@ -2037,7 +2037,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (max_cache_tokens != chat_ctx->max_cache_tokens)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid max_cache_tokens (%u), must be between 1024-1000000, using default: %u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid max_cache_tokens (%u), must be between 1024-1000000, using default: %u",
                            max_cache_tokens, chat_ctx->max_cache_tokens);
         }
 
@@ -2049,7 +2049,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (max_memory_mb != chat_ctx->max_memory_mb)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid max_memory_mb (%u), must be 0 or between 128-32768, using default: %u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid max_memory_mb (%u), must be 0 or between 128-32768, using default: %u",
                            max_memory_mb, chat_ctx->max_memory_mb);
         }
 
@@ -2062,7 +2062,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (memory_pressure != chat_ctx->memory_pressure_threshold)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid memory_pressure_threshold (%.2f), must be between 0.5-0.95, using default: %.2f", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid memory_pressure_threshold (%.2f), must be between 0.5-0.95, using default: %.2f",
                            memory_pressure, chat_ctx->memory_pressure_threshold);
         }
 
@@ -2075,14 +2075,14 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (n_keep_tokens != chat_ctx->n_keep_tokens)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid n_keep_tokens (%u), must be between 64-2048, using default: %u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid n_keep_tokens (%u), must be between 64-2048, using default: %u",
                            n_keep_tokens, chat_ctx->n_keep_tokens);
         }
 
         // Boolean memory settings
-        chat_ctx->enable_partial_cache_deletion = cjson_get_value(memory_policy, "enable_partial_cache_deletion", 
+        chat_ctx->enable_partial_cache_deletion = cjson_get_value(memory_policy, "enable_partial_cache_deletion",
                                                                  chat_ctx->enable_partial_cache_deletion);
-        chat_ctx->enable_token_cache_reuse = cjson_get_value(memory_policy, "enable_token_cache_reuse", 
+        chat_ctx->enable_token_cache_reuse = cjson_get_value(memory_policy, "enable_token_cache_reuse",
                                                             chat_ctx->enable_token_cache_reuse);
 
         // Cache deletion strategy
@@ -2094,7 +2094,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (!cache_delete_strategy.empty() && cache_delete_strategy != chat_ctx->cache_deletion_strategy)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid cache_deletion_strategy '%s', using default '%s'", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid cache_deletion_strategy '%s', using default '%s'",
                            cache_delete_strategy.c_str(), chat_ctx->cache_deletion_strategy.c_str());
         }
       }
@@ -2104,7 +2104,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
       if (cJSON_IsObject(logging))
       {
         std::string log_level = cjson_get_value(logging, "level", chat_ctx->log_level);
-        if (log_level == "debug" || log_level == "info" || log_level == "warn" || 
+        if (log_level == "debug" || log_level == "info" || log_level == "warn" ||
             log_level == "error" || log_level == "fatal")
         {
           chat_ctx->log_level = log_level;
@@ -2112,7 +2112,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (!log_level.empty() && log_level != chat_ctx->log_level)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid log level '%s', using default '%s'", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid log level '%s', using default '%s'",
                            log_level.c_str(), chat_ctx->log_level.c_str());
         }
 
@@ -2132,7 +2132,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
       cJSON *performance = cJSON_GetObjectItem(json, "performance");
       if (cJSON_IsObject(performance))
       {
-        chat_ctx->batch_processing_enabled = cjson_get_value(performance, "batch_processing", 
+        chat_ctx->batch_processing_enabled = cjson_get_value(performance, "batch_processing",
                                                             chat_ctx->batch_processing_enabled);
 
         uint32_t batch_size = cjson_get_value(performance, "batch_size", chat_ctx->batch_size);
@@ -2143,7 +2143,7 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
         }
         else if (batch_size != chat_ctx->batch_size)
         {
-          WASI_NN_LOG_WARN(chat_ctx, "Invalid batch_size (%u), must be between 1-2048, using default: %u", 
+          WASI_NN_LOG_WARN(chat_ctx, "Invalid batch_size (%u), must be between 1-2048, using default: %u",
                            batch_size, chat_ctx->batch_size);
         }
       }
@@ -2158,13 +2158,13 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
                 WASI_NN_LOG_INFO(chat_ctx, "the path of scale is %f", scale->valuedouble);
                 }
             }
-        
+
 
 
 
       cJSON_Delete(json);
     }
-    
+
     // Phase 4.3: Parse advanced memory management settings
     if (config && config_len > 0) {
       std::string config_str(config, config_len);
@@ -2179,39 +2179,39 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
   // Initialize task queue system (Phase 4.2)
   chat_ctx->task_queue = std::make_shared<wasi_nn_task_queue>();
   chat_ctx->task_queue->max_queue_size = chat_ctx->queue_size;
-  
+
   // Start task processing thread if enabled
   if (chat_ctx->task_processing_enabled) {
     chat_ctx->task_processor_thread = std::thread([chat_ctx]() {
       NN_INFO_PRINTF("Task processor thread started");
-      
+
       wasi_nn_task task;
       while (chat_ctx->task_queue->running) {
         if (chat_ctx->task_queue->dequeue_task(task, chat_ctx)) {
           // Process the task
-          NN_INFO_PRINTF("Processing task %d for execution context %d", 
+          NN_INFO_PRINTF("Processing task %d for execution context %d",
                          task.id, task.exec_ctx);
-          
+
           // For now, just mark as completed
           // In a full implementation, this would trigger actual inference
           {
             std::unique_lock<std::mutex> lock(chat_ctx->task_queue->queue_mutex);
             chat_ctx->task_queue->tasks_completed++;
           }
-          
+
           NN_INFO_PRINTF("Task %d completed", task.id);
         }
       }
-      
+
       NN_INFO_PRINTF("Task processor thread terminated");
     });
   }
 
   NN_INFO_PRINTF("Llama chat backend initialized successfully");
-  
+
   // Phase 5.1: Initialize advanced logging system
   initialize_advanced_logging(chat_ctx);
-  
+
   // Use enhanced logging for configuration output
   WASI_NN_LOG_INFO(chat_ctx,
       "Session config: max_sessions=%d, idle_timeout_ms=%d, auto_cleanup=%s",
@@ -2271,18 +2271,18 @@ load_by_name_with_config(void *ctx, const char *filename, uint32_t filename_len,
 
   // Check if this is a model switch (if a model is already loaded)
   bool is_model_switch = (chat_ctx->server_ctx.model != nullptr);
-  
+
   if (is_model_switch) {
-    NN_INFO_PRINTF("Performing safe model switch from %s to %s", 
+    NN_INFO_PRINTF("Performing safe model switch from %s to %s",
                    chat_ctx->current_model_path.c_str(), filename);
-    
+
     // Use safe model switching
     wasi_nn_error switch_result = safe_model_switch(chat_ctx, filename, filename_len, config);
     if (switch_result != success) {
       NN_ERR_PRINTF("Safe model switch failed: %d", switch_result);
       return switch_result;
     }
-    
+
     NN_INFO_PRINTF("Safe model switch completed successfully");
     return success;
   }
@@ -2321,30 +2321,30 @@ load_by_name_with_config(void *ctx, const char *filename, uint32_t filename_len,
   chat_ctx->current_model_path = std::string(filename, filename_len);
   chat_ctx->model_context_length = n_ctx_train;
   chat_ctx->model_vocab_size = llama_vocab_n_tokens(chat_ctx->server_ctx.vocab);
-  
+
   // Get model architecture and name if available
   char model_desc[256] = {0};
   if (llama_model_desc(chat_ctx->server_ctx.model, model_desc, sizeof(model_desc)) > 0) {
     chat_ctx->model_architecture = std::string(model_desc);
   }
-  
+
   // Extract model name from path
   std::string path(filename, filename_len);
   size_t last_slash = path.find_last_of("/\\");
-  chat_ctx->model_name = (last_slash != std::string::npos) ? 
+  chat_ctx->model_name = (last_slash != std::string::npos) ?
                          path.substr(last_slash + 1) : path;
-  
+
   // Generate simple version string based on file size and modification time
   struct stat file_stat;
   if (stat(filename, &file_stat) == 0) {
     char version_buf[64];
-    snprintf(version_buf, sizeof(version_buf), "size_%ld_mtime_%ld", 
+    snprintf(version_buf, sizeof(version_buf), "size_%ld_mtime_%ld",
              file_stat.st_size, file_stat.st_mtime);
     chat_ctx->current_model_version = std::string(version_buf);
   }
 
   NN_INFO_PRINTF("Model loaded successfully. Context size: %d", n_ctx);
-  NN_INFO_PRINTF("Model info recorded: name=%s, arch=%s, vocab_size=%ld, ctx_len=%ld", 
+  NN_INFO_PRINTF("Model info recorded: name=%s, arch=%s, vocab_size=%ld, ctx_len=%ld",
                  chat_ctx->model_name.c_str(), chat_ctx->model_architecture.c_str(),
                  chat_ctx->model_vocab_size, chat_ctx->model_context_length);
 
@@ -2435,7 +2435,7 @@ __attribute__((visibility("default"))) wasi_nn_error init_execution_context_with
   for (auto &pair : chat_ctx->sessions) {
     if (pair.second.session_id == session_id_str) {
       *exec_ctx = pair.first;
-      NN_INFO_PRINTF("Reusing existing session '%s' with execution context %d", 
+      NN_INFO_PRINTF("Reusing existing session '%s' with execution context %d",
                      session_id, pair.first);
       return success;
     }
@@ -2447,7 +2447,7 @@ __attribute__((visibility("default"))) wasi_nn_error init_execution_context_with
   // Check if we can create a new session (use sessions.size() vs max_sessions)
   if (chat_ctx->sessions.size() >= chat_ctx->max_sessions)
   {
-    NN_ERR_PRINTF("Unable to create new session after cleanup. Current: %zu, Max: %d", 
+    NN_ERR_PRINTF("Unable to create new session after cleanup. Current: %zu, Max: %d",
                   chat_ctx->sessions.size(), chat_ctx->max_sessions);
     return runtime_error;
   }
@@ -2504,18 +2504,18 @@ close_execution_context(void *ctx, graph_execution_context exec_ctx)
   {
     NN_INFO_PRINTF("Closing execution context %d for session '%s'", exec_ctx,
                    it->second.session_id.c_str());
-    
+
     // Phase 4.3: Auto-clear KV cache for this session before closing
     auto_clear_kv_cache_session(chat_ctx, exec_ctx);
-    
+
     chat_ctx->sessions.erase(it);
-    
+
     // Phase 4.3: Check if we should do global memory optimization after session close
     if (chat_ctx->sessions.empty()) {
       // All sessions closed, good time for global cleanup
       auto_clear_all_kv_cache(chat_ctx);
     }
-    
+
     return success;
   }
 
@@ -2708,7 +2708,7 @@ static std::string run_inference_for_session_with_params(LlamaChatContext *chat_
     WASI_NN_LOG_DEBUG(chat_ctx, "New session detected, clearing KV cache for session %d", exec_ctx);
     llama_memory_clear(llama_get_memory(chat_ctx->server_ctx.ctx), true);
   } else {
-    WASI_NN_LOG_DEBUG(chat_ctx, "Continuing session %d with %zu messages, preserving KV cache", 
+    WASI_NN_LOG_DEBUG(chat_ctx, "Continuing session %d with %zu messages, preserving KV cache",
                        exec_ctx, chat_msgs.size());
   }
 
@@ -2733,7 +2733,7 @@ static std::string run_inference_for_session_with_params(LlamaChatContext *chat_
 
   // Apply runtime parameters to sampler if provided
   if (runtime_params && !chat_ctx->server_ctx.slots.empty() && chat_ctx->server_ctx.slots[0].smpl) {
-    apply_runtime_params_to_sampling(chat_ctx->server_ctx.slots[0].smpl, *runtime_params, 
+    apply_runtime_params_to_sampling(chat_ctx->server_ctx.slots[0].smpl, *runtime_params,
                                     chat_ctx->server_ctx.model, chat_ctx);
   }
 
@@ -2775,7 +2775,7 @@ static std::string run_inference_for_session_with_params(LlamaChatContext *chat_
     if (runtime_params && runtime_params->ignore_eos_set) {
       should_stop_eos = should_stop_eos && !runtime_params->ignore_eos;
     }
-    
+
     if (should_stop_eos) {
     //   WASI_NN_LOG_DEBUG(chat_ctx, "Generation stopped at EOS token");
       break;
@@ -2849,7 +2849,7 @@ run_inference(void *ctx, graph_execution_context exec_ctx, uint32_t index,
     // Parse runtime parameters if provided
     wasi_nn_runtime_params runtime_params;
     bool params_valid = true;
-    
+
     if (runtime_config && config_len > 0) {
       params_valid = parse_runtime_params(runtime_config, config_len, runtime_params, chat_ctx);
       if (!params_valid) {
@@ -2862,7 +2862,7 @@ run_inference(void *ctx, graph_execution_context exec_ctx, uint32_t index,
 
     // Run inference with enhanced function
     std::string response = run_inference_for_session_with_params(
-        chat_ctx, exec_ctx, prompt_text, 
+        chat_ctx, exec_ctx, prompt_text,
         (params_valid && (runtime_config && config_len > 0)) ? &runtime_params : nullptr);
 
     *output_tensor_size = response.size() + 1;
@@ -2918,17 +2918,17 @@ set_input(void *ctx, graph_execution_context exec_ctx, uint32_t index,
       tensor_size *= wasi_nn_tensor->dimensions->buf[i];
     }
   }
-  
+
   // For text data, we assume it's null-terminated or use a reasonable max length
   size_t prompt_len = strnlen(prompt_str, tensor_size);
   std::string prompt(prompt_str, prompt_len);
-  
+
   // Store the prompt for later processing in compute()
   // For now, we'll store it in the session (could be optimized)
   session_it->second.session_id = prompt; // Temporary storage
-  
-  NN_INFO_PRINTF("Input set for execution context %d: %.100s%s", 
-                 exec_ctx, prompt.c_str(), 
+
+  NN_INFO_PRINTF("Input set for execution context %d: %.100s%s",
+                 exec_ctx, prompt.c_str(),
                  prompt.length() > 100 ? "..." : "");
 
   return success;
@@ -2955,20 +2955,20 @@ compute(void *ctx, graph_execution_context exec_ctx)
 
   // For simplified version, process immediately without concurrency limits
   NN_INFO_PRINTF("Processing compute request immediately for execution context %d", exec_ctx);
-  
+
   // Update last activity time
   session_it->second.last_activity = std::chrono::steady_clock::now();
-  
+
   // Phase 4.3: Auto context shift if needed (context window approaching limit)
   auto_perform_context_shift_session(chat_ctx, exec_ctx);
-  
+
   // For Phase 4.2, we're mainly implementing the queuing mechanism
   // The actual inference processing remains the same as before
   // This would typically involve:
   // 1. Creating server tasks
   // 2. Processing through the server context
   // 3. Managing the llama context and sampling
-  
+
   return success;
 }
 
@@ -2990,15 +2990,15 @@ auto_clear_kv_cache_session(LlamaChatContext *chat_ctx, graph_execution_context 
     NN_ERR_PRINTF("Invalid context");
     return invalid_argument;
   }
-  
+
   NN_DBG_PRINTF("Auto-clearing KV cache for session %u", exec_ctx);
-  
+
   wasi_nn_error result = clear_kv_cache(chat_ctx, exec_ctx);
   if (result != success) {
     NN_WARN_PRINTF("Failed to auto-clear KV cache for session %u: %d", exec_ctx, result);
     return result;
   }
-  
+
   return success;
 }
 
@@ -3009,15 +3009,15 @@ auto_clear_all_kv_cache(LlamaChatContext *chat_ctx)
     NN_ERR_PRINTF("Invalid context");
     return invalid_argument;
   }
-  
+
   NN_DBG_PRINTF("Auto-clearing all KV cache");
-  
+
   wasi_nn_error result = clear_kv_cache(chat_ctx, 0); // session_id = 0 means all sessions
   if (result != success) {
     NN_WARN_PRINTF("Failed to auto-clear all KV cache: %d", result);
     return result;
   }
-  
+
   return success;
 }
 
@@ -3033,15 +3033,15 @@ auto_perform_context_shift_session(LlamaChatContext *chat_ctx, graph_execution_c
     NN_DBG_PRINTF("Context shifting is disabled for session %u", exec_ctx);
     return success; // Not an error, just disabled
   }
-  
+
   NN_DBG_PRINTF("Auto-performing context shift for session %u", exec_ctx);
-  
+
   wasi_nn_error result = perform_context_shift(chat_ctx, exec_ctx);
   if (result != success) {
     NN_WARN_PRINTF("Failed to auto-perform context shift for session %u: %d", exec_ctx, result);
     return result;
   }
-  
+
   return success;
 }
 
@@ -3052,9 +3052,9 @@ auto_optimize_memory(LlamaChatContext *chat_ctx, graph_execution_context exec_ct
     NN_ERR_PRINTF("Invalid context");
     return invalid_argument;
   }
-  
+
   NN_DBG_PRINTF("Auto-optimizing memory for session %u", exec_ctx);
-  
+
   // Check for memory pressure and handle it
   if (check_memory_pressure(chat_ctx)) {
     NN_INFO_PRINTF("Memory pressure detected, performing automatic cleanup");
@@ -3064,13 +3064,13 @@ auto_optimize_memory(LlamaChatContext *chat_ctx, graph_execution_context exec_ct
       // Don't fail the inference, just log warning
     }
   }
-  
+
   // Optimize token cache (non-critical)
   wasi_nn_error result = optimize_token_cache(chat_ctx, exec_ctx);
   if (result != success) {
     NN_DBG_PRINTF("Token cache optimization skipped: %d", result);
     // This is not critical for inference
   }
-  
+
   return success;
 }
