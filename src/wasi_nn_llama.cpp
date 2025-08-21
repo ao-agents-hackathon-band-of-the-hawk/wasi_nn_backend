@@ -1894,6 +1894,10 @@ __attribute__((visibility("default"))) wasi_nn_error init_backend(void **ctx)
 __attribute__((visibility("default"))) wasi_nn_error
 init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
 {
+    if (!ctx) {
+      NN_ERR_PRINTF("The context pointer provided to init_backend cannot be null.");
+      return invalid_argument;
+    }
   LlamaChatContext *chat_ctx = new LlamaChatContext();
   if (!chat_ctx)
   {
@@ -1905,6 +1909,13 @@ init_backend_with_config(void **ctx, const char *config, uint32_t config_len)
   if (config && config_len > 0)
   {
     cJSON *json = cJSON_ParseWithLength(config, config_len);
+    if (!json) {
+         NN_ERR_PRINTF("Failed to parse configuration JSON. The provided string is not valid.");
+         delete chat_ctx; // Clean up the allocated context
+         *ctx = NULL;
+         return invalid_argument; // Return an error to stop initialization
+     }
+
     if (json)
     {
       // Helper function to parse backend configuration (optimized)
@@ -2265,6 +2276,11 @@ load_by_name_with_config(void *ctx, const char *filename, uint32_t filename_len,
   LlamaChatContext *chat_ctx = (LlamaChatContext *)ctx;
   if (!chat_ctx)
     return invalid_argument;
+
+  if (!filename) {
+    NN_ERR_PRINTF("The model filename cannot be null.");
+    return invalid_argument;
+  }
 
   NN_DBG_PRINTF("Loading model: %s", filename);
   NN_DBG_PRINTF("Config: %s", config ? config : "null");
@@ -2749,13 +2765,20 @@ static std::string run_inference_for_session_with_params(LlamaChatContext *chat_
   // Generate response (simplified version of main.cpp's loop)
   std::string response;
 
-  // Process input tokens
-  llama_batch batch = llama_batch_get_one(tokens.data(), tokens.size());
+  // Process input tokens in batches
+  const int n_batch = chat_ctx->server_ctx.params_base.n_batch;  // Or wherever n_batch is stored
+  size_t n_tokens_processed = 0;
+  while (n_tokens_processed < tokens.size()) {
+      size_t n_tokens_batch = std::min(static_cast<size_t>(n_batch), tokens.size() - n_tokens_processed);
 
-  if (llama_decode(chat_ctx->server_ctx.ctx, batch))
-  {
-    NN_ERR_PRINTF("Failed to decode input tokens");
-    return "Error: Failed to process input";
+      llama_batch batch = llama_batch_get_one(tokens.data() + n_tokens_processed, n_tokens_batch);
+
+      if (llama_decode(chat_ctx->server_ctx.ctx, batch)) {
+          NN_ERR_PRINTF("Failed to decode input tokens batch");
+          return "Error: Failed to process input";
+      }
+
+      n_tokens_processed += n_tokens_batch;
   }
 
   // Generate tokens one by one with runtime parameter support
@@ -2806,7 +2829,7 @@ static std::string run_inference_for_session_with_params(LlamaChatContext *chat_
     }
 
     // Prepare next batch
-    batch = llama_batch_get_one(&new_token, 1);
+    llama_batch batch = llama_batch_get_one(&new_token, 1);
     if (llama_decode(chat_ctx->server_ctx.ctx, batch))
     {
       NN_ERR_PRINTF("Failed to decode generated token");
@@ -2838,6 +2861,11 @@ run_inference(void *ctx, graph_execution_context exec_ctx, uint32_t index,
     return invalid_argument;
   }
 
+  // --- START FIX ---
+  // 1. Capture the provided capacity of the output buffer before it's used.
+  const uint32_t output_buffer_capacity = (output_tensor_size != nullptr) ? *output_tensor_size : 0;
+  // --- END FIX ---
+
   char *prompt_text = (char *)input_tensor->data;
   if (!prompt_text)
   {
@@ -2865,8 +2893,16 @@ run_inference(void *ctx, graph_execution_context exec_ctx, uint32_t index,
         chat_ctx, exec_ctx, prompt_text,
         (params_valid && (runtime_config && config_len > 0)) ? &runtime_params : nullptr);
 
-    *output_tensor_size = response.size() + 1;
-    copy_string_to_tensor_data(output_tensor, *output_tensor_size, response);
+    // --- START FIX ---
+    // 2. Use the captured buffer capacity for a safe copy. This prevents writing past
+    //    the end of the buffer if the response is larger than the allocated space.
+    copy_string_to_tensor_data(output_tensor, output_buffer_capacity, response);
+
+    // 3. Report back the actual number of characters in the response string.
+    //    If the response was truncated, the caller can detect it by comparing
+    //    this value with the original buffer capacity.
+    *output_tensor_size = response.length();
+    // --- END FIX ---
 
     WASI_NN_LOG_DEBUG(chat_ctx, "Generated response: %s", response.c_str());
     return success;
