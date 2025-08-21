@@ -7,3 +7,4 @@ main.o
 *.gguf
 *codebase.md
 *.log
+*.lock
