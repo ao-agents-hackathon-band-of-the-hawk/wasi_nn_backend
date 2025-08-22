@@ -2389,7 +2389,16 @@ load_by_name_with_config(void *ctx, const char *filename, uint32_t filename_len,
              file_stat.st_size, file_stat.st_mtime);
     chat_ctx->current_model_version = std::string(version_buf);
   }
-
+  
+  bool is_lora_loaded = chat_ctx->server_ctx.load_adapter(chat_ctx->server_ctx.params_base);
+   if(is_lora_loaded)
+   { 
+    NN_INFO_PRINTF("LoRA successfully loaded!");
+  }
+  else{
+    NN_INFO_PRINTF("LoRA failed to load, Proceeding without it");
+  }
+  
   NN_INFO_PRINTF("Model loaded successfully. Context size: %d", n_ctx);
   NN_INFO_PRINTF("Model info recorded: name=%s, arch=%s, vocab_size=%ld, ctx_len=%ld",
                  chat_ctx->model_name.c_str(), chat_ctx->model_architecture.c_str(),

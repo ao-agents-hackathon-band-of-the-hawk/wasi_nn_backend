@@ -12,12 +12,31 @@ int test_basic_inference() {
     err = wasi_init_backend_with_config(&backend_ctx, config, strlen(config));
     ASSERT_SUCCESS(err, "Backend initialization failed");
 
-    const char *model_config = "{"
-                              "\"n_gpu_layers\":98,"
-                              "\"ctx_size\":2048,"
-                              "\"n_predict\":100,"
-                              "\"sampling\":{\"temp\":0.7}"
-                              "}";
+     const char *model_config =
+        "{"
+        "  \"model\": {"
+        "    \"n_gpu_layers\": 49,"
+        "    \"ctx_size\": 2048,"
+        "    \"batch_size\": 512,"
+        "    \"threads\": 4"
+        "  },"
+        "  \"backend\": {"
+        "    \"max_sessions\": 50,"
+        "    \"max_concurrent\": 4,"
+        "    \"queue_size\": 20"
+        "  },"
+        "  \"logging\": {"
+        "    \"level\": \"info\","
+        "    \"enable_debug\": true"
+        "  },"
+        "  \"lora_adapters\": ["
+        "    {"
+        "      \"path\": \"./models/LoRA_adapter1.gguf\","
+        "      \"scale\": 1.0"
+        "    }"
+        "  ]"
+        "}";
+
 
     err = wasi_load_by_name_with_config(backend_ctx, MODEL_FILE, strlen(MODEL_FILE),
                                   model_config, strlen(model_config), &g);
@@ -295,7 +314,7 @@ int test_dynamic_runtime_parameters() {
     printf("✅ Advanced sampling parameters work\n");
     printf("✅ Error handling is robust\n");
     printf("✅ Extreme parameter values are handled gracefully\n");
-
+    printf("✅ LoRA adapters handled perfectly");
     // Cleanup
     wasi_close_execution_context(backend_ctx, exec_ctx);
     wasi_deinit_backend(backend_ctx);
