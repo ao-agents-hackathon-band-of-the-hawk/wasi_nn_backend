@@ -2265,6 +2265,10 @@ bool load_adapter(const common_params &params) {
     if (!model) {
         return false;
     }
+    if (params.lora_adapters.empty()){
+        SRV_INF("%s\n", "No LoRA adapters to load.");
+        return false;
+    }
     
     for (const auto& adapter : params.lora_adapters) {
         llama_adapter_lora* adapter_ptr = llama_adapter_lora_init(model, adapter.path.c_str());
